@@ -40,58 +40,106 @@ module NewAttempt(
 //		.clk400m(clk400m)
 //	);
 	
-	reg [11:0] count;//7
+	reg [23:0] count;//7
 	assign CSN = 0;
 //	assign RSTN = 1;
 	reg [15:0] SDReg;//8
-	assign SD = RDN ? SDReg:16'bz;
 	reg [15:0] outData;//9
 	
-	assign LED = RSTN;
+	assign LED = 1;
 	
-//	always @(posedge RDN) begin		
-//		outData <= SD;
+//	always @(posedge clk40m) begin//period = 2.5ns
+//		count = count + 1;
+//		if(count == 12'h100) begin
+//			CMD = 1;
+//			WRN = 0;
+//			SDReg = 16'h30C0;		
+//		end
+//		else if(count == 12'h102) begin//WRN active time = 10ns + 40ns(data is valid)
+//			WRN = 1;//latch address
+//		end
+//		else if(count == 12'h103) begin//WRN inactive time = 25ns
+//			SDReg = 16'hz;//high-impedance
+//			CMD = 0;
+//			RDN = 0;
+//		end
+//		else if(count == 12'h105) begin//RDN active time = 50ns in between
+//			RDN = 1;
+//			outData = SD;
+//		end
+//		//Another write
+//		else if(count == 12'h106) begin
+//			CMD = 1;
+//			WRN = 0;
+//			SDReg = 16'h3010;		
+//		end
+//		else if(count == 12'h108) begin//WRN active time = 10ns + 40ns(data is valid)
+//			WRN = 1;//latch address
+//		end
+//		else if(count == 12'h109) begin//WRN inactive time = 25ns
+//			SDReg = 16'h89AB;//inData
+//			CMD = 0;
+//			WRN = 0;
+//		end
+//		else if(count == 12'h10B) begin//RDN active time = 50ns in between
+//			WRN = 1;
+//			outData = 16'hFFFF;
+//		end
 //	end
-	
-	always @(posedge clk40m) begin//period = 2.5ns
-		count = count + 1;
-		if(count == 12'h100) begin
-			CMD = 1;
-			WRN = 0;
-			SDReg = 16'h30C0;			
+
+	always @(posedge clk40m or negedge RSTN) begin
+		if(!RSTN) begin
+			WRN <= 1;
+			RDN <= 1;
+			CMD <= 1;
+			count <= 24'h00_0000;
+			outData <= 16'hFFFF;
 		end
-		else if(count == 12'h102) begin//WRN active time = 10ns + 40ns(data is valid)
-			WRN = 1;//latch address
-		end
-		else if(count == 12'h103) begin//WRN inactive time = 25ns
-			SDReg = 16'hz;//high-impedance
-			CMD = 0;
-			RDN = 0;
-		end
-		else if(count == 12'h105) begin//RDN active time = 50ns in between
-			RDN = 1;
-			outData = SD;
-		end
-		//Another write
-		else if(count == 12'h106) begin
-			CMD = 1;
-			WRN = 0;
-			SDReg = 16'h3010;		
-		end
-		else if(count == 12'h108) begin//WRN active time = 10ns + 40ns(data is valid)
-			WRN = 1;//latch address
-		end
-		else if(count == 12'h109) begin//WRN inactive time = 25ns
-			SDReg = 16'h89AB;//inData
-			CMD = 0;
-			WRN = 0;
-		end
-		else if(count == 12'h10B) begin//RDN active time = 50ns in between
-			WRN = 1;
-			outData = 16'hFFFF;
-			count = 12'h0FF;
+		else begin
+			count <= count + 24'h00_0001;
+			if(count == 24'h20_0001) begin
+				CMD <= 1;
+				WRN <= 0;
+				SDReg <= 16'h30C0;		
+			end
+			else if(count == 24'h20_0003) begin//WRN active time = 10ns + 40ns(data is valid)
+				WRN <= 1;//latch address
+			end
+			else if(count == 24'h20_0004) begin//WRN inactive time = 25ns
+				SDReg <= 16'hz;//high-impedance
+				CMD <= 0;
+				RDN <= 0;
+			end
+			else if(count == 24'h20_0005) begin
+				outData <= SD;
+			end
+			else if(count == 24'h20_0006) begin//RDN active time = 50ns in between
+				RDN <= 1;
+			end
+//			//Another write
+//			else if(count == 12'h106) begin
+//				CMD = 1;
+//				WRN = 0;
+//				SDReg = 16'h3010;		
+//			end
+//			else if(count == 12'h108) begin//WRN active time = 10ns + 40ns(data is valid)
+//				WRN = 1;//latch address
+//			end
+//			else if(count == 12'h109) begin//WRN inactive time = 25ns
+//				SDReg = 16'h89AB;//inData
+//				CMD = 0;
+//				WRN = 0;
+//			end
+//			else if(count == 12'h10B) begin//RDN active time = 50ns in between
+//				WRN = 1;
+//				count = count - 1;
+//			end
 		end
 	end
+	
+	
+	assign SD = RDN ? SDReg:16'hz;	
+	
 
 	wire[35:0] ILAControl;
 	NewAttempt_icon ICON(
@@ -101,12 +149,12 @@ module NewAttempt(
 		.CONTROL(ILAControl),
 		.CLK(clk40m),
 		.TRIG0(clk40m),
-		.TRIG1(CSN),
+		.TRIG1(RSTN),
 		.TRIG2(CMD),
 		.TRIG3(RDN),
 		.TRIG4(WRN),
 		.TRIG5(SD),
-		.TRIG6(count),
+		.TRIG6({count[23:16],count[3:0]}),
 		.TRIG7(SDReg),
 		.TRIG8(outData)
 	);
