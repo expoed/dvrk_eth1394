@@ -1,0 +1,12 @@
+# Output products list for <NewAttempt_icon>
+NewAttempt_icon.asy
+NewAttempt_icon.ejp
+NewAttempt_icon.gise
+NewAttempt_icon.ngc
+NewAttempt_icon.v
+NewAttempt_icon.veo
+NewAttempt_icon.xco
+NewAttempt_icon.xise
+NewAttempt_icon_flist.txt
+NewAttempt_icon_readme.txt
+NewAttempt_icon_xmdf.tcl

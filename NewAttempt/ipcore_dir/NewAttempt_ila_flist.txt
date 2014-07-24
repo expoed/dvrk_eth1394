@@ -1,0 +1,14 @@
+# Output products list for <NewAttempt_ila>
+NewAttempt_ila.asy
+NewAttempt_ila.cdc
+NewAttempt_ila.ejp
+NewAttempt_ila.gise
+NewAttempt_ila.ncf
+NewAttempt_ila.ngc
+NewAttempt_ila.v
+NewAttempt_ila.veo
+NewAttempt_ila.xco
+NewAttempt_ila.xise
+NewAttempt_ila_flist.txt
+NewAttempt_ila_readme.txt
+NewAttempt_ila_xmdf.tcl
