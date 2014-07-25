@@ -1,0 +1,12 @@
+# Output products list for <EthernetInit_icon>
+EthernetInit_icon.asy
+EthernetInit_icon.ejp
+EthernetInit_icon.gise
+EthernetInit_icon.ngc
+EthernetInit_icon.v
+EthernetInit_icon.veo
+EthernetInit_icon.xco
+EthernetInit_icon.xise
+EthernetInit_icon_flist.txt
+EthernetInit_icon_readme.txt
+EthernetInit_icon_xmdf.tcl

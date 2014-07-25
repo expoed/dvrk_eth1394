@@ -1,0 +1,14 @@
+# Output products list for <EthernetInit_ila>
+EthernetInit_ila.asy
+EthernetInit_ila.cdc
+EthernetInit_ila.ejp
+EthernetInit_ila.gise
+EthernetInit_ila.ncf
+EthernetInit_ila.ngc
+EthernetInit_ila.v
+EthernetInit_ila.veo
+EthernetInit_ila.xco
+EthernetInit_ila.xise
+EthernetInit_ila_flist.txt
+EthernetInit_ila_readme.txt
+EthernetInit_ila_xmdf.tcl
