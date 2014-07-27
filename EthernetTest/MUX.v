@@ -21,48 +21,89 @@
 module MUX1 (
 	input wire0,
 	input wire1,
-	input ctl,
+	input wire2,
+	input wire3,
+	input[2:0] ctl,
 	output out
 	);
-	assign out = ctl? wire1:wire0;
+	localparam [2:0] Init = 3'b000,
+					 Transmit_Init = 3'b001,
+					 Transmit = 3'b010,
+					 Receive_Init = 3'b011,
+					 Receive = 3'b100,
+					 Idle = 3'b111;
+	assign out = (ctl == Init)? wire0
+				:(ctl == Transmit_Init || ctl == Transmit)? wire1
+				:(ctl == Receive_Init || ctl == Receive)? wire2
+				:wire3;
 endmodule
 
 module MUX8 (
 	input[7:0] wire0,
 	input[7:0] wire1,
-	input ctl,
+	input[7:0] wire2,
+	input[7:0] wire3,
+	input[2:0] ctl,
 	output[7:0] out
 	);
-	assign out[0] = ctl? wire1[0]:wire0[0];
-	assign out[1] = ctl? wire1[1]:wire0[1];
-	assign out[2] = ctl? wire1[2]:wire0[2];
-	assign out[3] = ctl? wire1[3]:wire0[3];
-	assign out[4] = ctl? wire1[4]:wire0[4];
-	assign out[5] = ctl? wire1[5]:wire0[5];
-	assign out[6] = ctl? wire1[6]:wire0[6];
-	assign out[7] = ctl? wire1[7]:wire0[7];
+	localparam [2:0] Init = 3'b000,
+					 Transmit_Init = 3'b001,
+					 Transmit = 3'b010,
+					 Receive_Init = 3'b011,
+					 Receive = 3'b100,
+					 Idle = 3'b111;
+	assign out[0] = (ctl == Init)? wire0[0]
+				:(ctl == Transmit_Init || ctl == Transmit)? wire1[0]
+				:(ctl == Receive_Init || ctl == Receive)? wire2[0]
+				:wire3[0];
+	assign out[1] = (ctl == Init)? wire0[1]
+				:(ctl == Transmit_Init || ctl == Transmit)? wire1[1]
+				:(ctl == Receive_Init || ctl == Receive)? wire2[1]
+				:wire3[1];
+	assign out[2] = (ctl == Init)? wire0[2]
+				:(ctl == Transmit_Init || ctl == Transmit)? wire1[2]
+				:(ctl == Receive_Init || ctl == Receive)? wire2[2]
+				:wire3[2];
+	assign out[3] = (ctl == Init)? wire0[3]
+				:(ctl == Transmit_Init || ctl == Transmit)? wire1[3]
+				:(ctl == Receive_Init || ctl == Receive)? wire2[3]
+				:wire3[3];
+	assign out[4] = (ctl == Init)? wire0[4]
+				:(ctl == Transmit_Init || ctl == Transmit)? wire1[4]
+				:(ctl == Receive_Init || ctl == Receive)? wire2[4]
+				:wire3[4];
+	assign out[5] = (ctl == Init)? wire0[5]
+				:(ctl == Transmit_Init || ctl == Transmit)? wire1[5]
+				:(ctl == Receive_Init || ctl == Receive)? wire2[5]
+				:wire3[5];
+	assign out[6] = (ctl == Init)? wire0[6]
+				:(ctl == Transmit_Init || ctl == Transmit)? wire1[6]
+				:(ctl == Receive_Init || ctl == Receive)? wire2[6]
+				:wire3[6];
+	assign out[7] = (ctl == Init)? wire0[7]
+				:(ctl == Transmit_Init || ctl == Transmit)? wire1[7]
+				:(ctl == Receive_Init || ctl == Receive)? wire2[7]
+				:wire3[7];
 endmodule
 
 module MUX16 (
 	input[15:0] wire0,
 	input[15:0] wire1,
-	input ctl,
+	input[15:0] wire2,
+	input[15:0] wire3,
+	input[2:0] ctl,
 	output[15:0] out
 	);
-	assign out[0] = ctl? wire1[0]:wire0[0];
-	assign out[1] = ctl? wire1[1]:wire0[1];
-	assign out[2] = ctl? wire1[2]:wire0[2];
-	assign out[3] = ctl? wire1[3]:wire0[3];
-	assign out[4] = ctl? wire1[4]:wire0[4];
-	assign out[5] = ctl? wire1[5]:wire0[5];
-	assign out[6] = ctl? wire1[6]:wire0[6];
-	assign out[7] = ctl? wire1[7]:wire0[7];
-	assign out[8] = ctl? wire1[8]:wire0[8];
-	assign out[9] = ctl? wire1[9]:wire0[9];
-	assign out[10] = ctl? wire1[10]:wire0[10];
-	assign out[11] = ctl? wire1[11]:wire0[11];
-	assign out[12] = ctl? wire1[12]:wire0[12];
-	assign out[13] = ctl? wire1[13]:wire0[13];
-	assign out[14] = ctl? wire1[14]:wire0[14];
-	assign out[15] = ctl? wire1[15]:wire0[15];
+	MUX8 M1(.wire0(wire0[7:0]),
+			.wire1(wire1[7:0]),
+			.wire2(wire2[7:0]),
+			.wire3(wire3[7:0]),
+			.ctl(ctl),
+			.out(out[7:0]));
+	MUX8 M2(.wire0(wire0[15:8]),
+			.wire1(wire1[15:8]),
+			.wire2(wire2[15:8]),
+			.wire3(wire3[15:8]),
+			.ctl(ctl),
+			.out(out[15:8]));
 endmodule

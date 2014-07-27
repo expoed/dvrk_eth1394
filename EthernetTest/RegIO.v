@@ -47,6 +47,7 @@ module RegIO(
 	input[15:0] writeData,
 	output reg[15:0] readData,
 	input NewCommand,//to be continued to not
+	input Dummy_Write,
 	output reg[3:0] state
     );
 	
@@ -68,6 +69,7 @@ module RegIO(
 					 Write1 = 4'b0111,
 					 Write2 = 4'b1000,
 					 Wait = 4'b1001;
+	
 	reg [15:0] SDReg;
 	
 	assign SD = RDN ? SDReg:16'hz;
@@ -126,11 +128,11 @@ module RegIO(
 				Write2:
 					begin
 						WRN <= 1;
-						state <= NewCommand ? Addr0:Wait;
+						state <= NewCommand ? (Dummy_Write? Write0:Addr0):Wait;
 					end
 				Wait:
 					begin
-						state <= NewCommand ? Addr0:Wait;
+						state <= NewCommand ? (Dummy_Write? Write0:Addr0):Wait;
 						CMD <= 1;
 						RDN <= 1;
 						WRN <= 1;
@@ -138,28 +140,31 @@ module RegIO(
 					end
 			endcase
 		end
+//		else if(master == Transmit) begin
+//		
+//		end
 	end
 
-	wire[35:0] ILAControl;
-	Ethernet_icon icon(.CONTROL0(ILAControl));
-	Ethernet_ila ila(
-	    .CONTROL(ILAControl),
-		.CLK(clk40m),
-		.TRIG0(CMD),
-		.TRIG1(RDN),
-		.TRIG2(WRN),
-		.TRIG3(reset),
-		.TRIG4(SD),
-		.TRIG5(SDReg),
-		.TRIG6(readData),
-		.TRIG7(WR),
-		.TRIG8(NewCommand),
-		.TRIG9(Addr),
-		.TRIG10(length),
-		.TRIG11(offset),
-		.TRIG12(state),
-		.TRIG13(0),
-		.TRIG14(length)
-	);
+//	wire[35:0] ILAControl;
+//	Ethernet_icon icon(.CONTROL0(ILAControl));
+//	Ethernet_ila ila(
+//	    .CONTROL(ILAControl),
+//		.CLK(clk40m),
+//		.TRIG0(CMD),
+//		.TRIG1(RDN),
+//		.TRIG2(WRN),
+//		.TRIG3(reset),
+//		.TRIG4(SD),
+//		.TRIG5(SDReg),
+//		.TRIG6(readData),
+//		.TRIG7(WR),
+//		.TRIG8(NewCommand),
+//		.TRIG9(Addr),
+//		.TRIG10(length),
+//		.TRIG11(offset),
+//		.TRIG12(state),
+//		.TRIG13(0),
+//		.TRIG14(0)
+//	);
 
 endmodule

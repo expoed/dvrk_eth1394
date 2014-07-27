@@ -18,7 +18,7 @@
 // Additional Comments: 
 //
 //////////////////////////////////////////////////////////////////////////////////
-module ModuleInitialization(
+module Initialization(
 	input clk40m,
 	input reset,
 	output reg[7:0] offset,
@@ -314,59 +314,46 @@ module ModuleInitialization(
 					writeData <= readData | 16'h0001;
 				end
 				else if(state == Read1 || state == Write1) begin
-					NewCommand <= 1;
+					NewCommand <= 0;//1 For Verification Part
 					step <= step + 1;
 				end
 			end
 //************************* Verification Starts *****************************
+//			else if(step == 19) begin
+//				if(state == Read2 || state == Write2) begin
+//					WR <= 0;
+//					offset <= 8'h70;
+//					length <= 1;
+//					writeData <= 16'bz;
+//				end
+//				else if(state == Read1 || state == Write1) begin
+//					NewCommand <= 1;
+//					step <= step + 1;
+//				end
+//			end
+//			else if(step == 20) begin
+//				if(state == Read2 || state == Write2) begin
+//					WR <= 0;
+//					offset <= 8'h74;
+//					length <= 1;
+//					writeData <= 16'bz;
+//				end
+//				else if(state == Read1 || state == Write1) begin
+//					NewCommand <= 0;
+//					step <= step + 1;
+//				end
+//			end
+//			else if(step == 20) begin
+//				initDone <= 1;
+//			end
+//************************* Verification Ends *****************************
 			else if(step == 19) begin
 				if(state == Read2 || state == Write2) begin
-					WR <= 0;
-					offset <= 8'h70;
-					length <= 1;
-					writeData <= 16'bz;
+					initDone <= 1;
 				end
-				else if(state == Read1 || state == Write1) begin
-					NewCommand <= 1;
-					step <= step + 1;
-				end
-			end
-			else if(step == 20) begin
-				if(state == Read2 || state == Write2) begin
-					WR <= 0;
-					offset <= 8'h74;
-					length <= 1;
-					writeData <= 16'bz;
-				end
-				else if(state == Read1 || state == Write1) begin
-					NewCommand <= 0;
-					step <= step + 1;
-				end
-			end
-//************************* Verification Ends *****************************
-			else if(step == 21) begin
-				initDone <= 1;
 			end
 		end		
-	end
-	
-//	wire[35:0] initILAControl;
-//	EthernetInit_icon icon(.CONTROL0(initILAControl));
-//	EthernetInit_ila ila(
-//		.CONTROL(initILAControl),
-//		.CLK(clk40m),
-//		.TRIG0(reset),
-//		.TRIG1(warmDone),
-//		.TRIG2(initDone),
-//		.TRIG3(step),
-//		.TRIG4(state),
-//		.TRIG5(offset),
-//		.TRIG6(length),
-//		.TRIG7(WR),
-//		.TRIG8(NewCommand),
-//		.TRIG9(readData)
-//	);	
-	
+	end	
 endmodule
 
 
