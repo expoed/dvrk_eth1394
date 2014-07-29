@@ -48,6 +48,7 @@ module RegIO(
 	output reg[15:0] readData,
 	input NewCommand,//to be continued to not
 	input Dummy_Write,
+	input Dummy_Read,
 	output reg[3:0] state
     );
 	
@@ -112,7 +113,16 @@ module RegIO(
 					begin
 						readData <= SD;
 						RDN <= 1;
-						state <= NewCommand ? Addr0:Wait;
+						if(NewCommand) begin
+							if(Dummy_Write)
+								state <= Write0;
+							else if(Dummy_Read)
+								state <= Read0;
+							else
+								state <= Addr0;
+						end
+						else
+							state <= Wait;
 					end
 				Write0:
 					begin
@@ -128,11 +138,29 @@ module RegIO(
 				Write2:
 					begin
 						WRN <= 1;
-						state <= NewCommand ? (Dummy_Write? Write0:Addr0):Wait;
+						if(NewCommand) begin
+							if(Dummy_Write)
+								state <= Write0;
+							else if(Dummy_Read)
+								state <= Read0;
+							else
+								state <= Addr0;
+						end
+						else
+							state <= Wait;
 					end
 				Wait:
 					begin
-						state <= NewCommand ? (Dummy_Write? Write0:Addr0):Wait;
+						if(NewCommand) begin
+							if(Dummy_Write)
+								state <= Write0;
+							else if(Dummy_Read)
+								state <= Read0;
+							else
+								state <= Addr0;
+						end
+						else
+							state <= Wait;
 						CMD <= 1;
 						RDN <= 1;
 						WRN <= 1;
@@ -140,9 +168,6 @@ module RegIO(
 					end
 			endcase
 		end
-//		else if(master == Transmit) begin
-//		
-//		end
 	end
 
 //	wire[35:0] ILAControl;
@@ -163,8 +188,8 @@ module RegIO(
 //		.TRIG10(length),
 //		.TRIG11(offset),
 //		.TRIG12(state),
-//		.TRIG13(0),
-//		.TRIG14(0)
+//		.TRIG13(Dummy_Read),
+//		.TRIG14(Dummy_Write)
 //	);
 
 endmodule

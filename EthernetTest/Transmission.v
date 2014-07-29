@@ -31,7 +31,7 @@ module Transmission(
 	output reg Dummy_Write,
 	input[3:0] state,
 	input transEn,
-	output reg[1:0] transmitStatus//00: Init, 01: Trans, 10: Wait, 11: Done
+	output reg[1:0] transmitStatus//00: Wait, 01: Trans, 10: Done
     );
 		
 	localparam [3:0] Addr0 = 4'b0000,
@@ -52,41 +52,44 @@ module Transmission(
 		if(!reset) begin
 			writeData <= 16'bz;
 			NewCommand <= 0;
-			transmitStatus <= 2'b10;//Waiting
+			transmitStatus <= 2'b00;//Waiting
 			step <= 0;
 			Dummy_Write <= 0;
 		end
 		else if(transEn) begin
-			if(transmitStatus == 2'b10) begin//still waiting
+			if(transmitStatus == 2'b00) begin//still waiting
 				NewCommand <= 1;
-				transmitStatus <= 2'b00;
+				transmitStatus <= 2'b01;
+				step <= 0;
 			end
-			else if(transmitStatus == 2'b00) begin
+			else if(transmitStatus == 2'b01) begin
 //========================= step 0: read QMU TXQ available memory
 				if(step == 0) begin
 					if(state == Wait) begin
 						WR <= 0;
 						offset <= 8'h78;
 						length <= 1;
-						writeData <= 16'bz;					
+						writeData <= 16'bz;
 					end
-					else if(state == Read1 || state == Write1) begin
+					else if(state == Read1) begin//Strange: if I write "state == Read1 || state == Write1", it's wrong
 						NewCommand <= 0;
 						step <= step + 1;
 					end
 				end
 //========================= step 1: check if QMU TXQ memory >= packetLen + 4
 				else if(step == 1) begin
-					if((readData << 3) >= (packetLen + 4) << 3) begin//To eliminate the upper 3 digits
-						NewCommand <= 1;
-						step <= step + 1;
-					end
-					else begin//No enough memory, back to the reset state;
-						step <= 0;
-						transmitStatus <= 2'b10;
-						NewCommand <= 0;
-						writeData <= 16'bz;
-						Dummy_Write <= 0;
+					if(state == Wait) begin
+						if(readData[12:0] >= packetLen + 4) begin
+							NewCommand <= 1;
+							step <= step + 1;
+						end
+						else begin//No enough memory, back to the reset state;
+							step <= 0;
+							transmitStatus <= 2'b00;
+							NewCommand <= 0;
+							writeData <= 16'bz;
+							Dummy_Write <= 0;
+						end
 					end
 				end
 //========================= step 2: disable all the device interrupts generation
@@ -146,17 +149,33 @@ module Transmission(
 						writeData <= {3'b000, packetLen};
 					else if(state == Write1) begin
 						step <= step + 1;
-						transmitStatus <= 2'b01;
 						lengthInWord <= ((packetLen + 3)& ~16'h0003)>>1;
 					end
 				end
-			end
 //========================= step 7: Transmitting: Writing Data
-			else if(transmitStatus == 2'b01) begin
-				if(step == 7) begin
+				else if(step == 7) begin
 					if(state == Write2) begin
-						writeData <= 16'h0256;
+						writeData <= 16'h2345;
 						lengthInWord <= lengthInWord - 1;
+						
+//						if (lengthInWord == 8)
+//							writeData <= 16'h0102;
+//						else if (lengthInWord == 7)
+//							writeData <= 16'h0304;
+//						else if (lengthInWord == 6)
+//							writeData <= 16'hEEFF;
+//						else if (lengthInWord == 5) 
+//							writeData <= 16'hAAAA;
+//						else if (lengthInWord == 4)
+//							writeData <= 16'h0304;
+//						else if (lengthInWord == 3)
+//							writeData <= 16'hEEFF;
+//						else if (lengthInWord == 2)
+//							writeData <= 16'h0801;
+//						else if (lengthInWord == 1)
+//							writeData <= 16'h99FF;
+//						else
+//							writeData <= 16'h6677;
 					end
 					else if(state == Write1) begin
 						if(lengthInWord == 0) begin
@@ -241,34 +260,34 @@ module Transmission(
 				end
 //========================= step 13: Exit
 				else if(step == 13) begin
-					if(state == Read2 || state == Write2) begin
-						transmitStatus <= 2'b11;
+					if(state == Wait) begin
+						transmitStatus <= 2'b10;//set transmitStatus 00 to loop, 10 to stop
 					end
 				end
 			end
 		end
 	end
 	
-	wire[35:0] ILAControl;
-	Ethernet_icon icon(.CONTROL0(ILAControl));
-	Ethernet_ila ila(
-	    .CONTROL(ILAControl),
-		.CLK(clk40m),
-		.TRIG0(initDone),
-		.TRIG1(transEn),
-		.TRIG2(0),
-		.TRIG3(reset),
-		.TRIG4(lengthInWord),
-		.TRIG5(writeData),
-		.TRIG6(readData),
-		.TRIG7(WR),
-		.TRIG8(NewCommand),
-		.TRIG9(offset),
-		.TRIG10(length),
-		.TRIG11(transmitStatus),
-		.TRIG12(state),
-		.TRIG13(step),
-		.TRIG14(Dummy_Write)
-	);
+//	wire[35:0] ILAControl;
+//	Ethernet_icon icon(.CONTROL0(ILAControl));
+//	Ethernet_ila ila(
+//	    .CONTROL(ILAControl),
+//		.CLK(clk40m),
+//		.TRIG0(0),
+//		.TRIG1(transEn),
+//		.TRIG2(0),
+//		.TRIG3(reset),
+//		.TRIG4(packetLen),
+//		.TRIG5(writeData),
+//		.TRIG6(readData),
+//		.TRIG7(WR),
+//		.TRIG8(NewCommand),
+//		.TRIG9(offset),
+//		.TRIG10(length),
+//		.TRIG11(transmitStatus),
+//		.TRIG12(state),
+//		.TRIG13(step),
+//		.TRIG14(Dummy_Write)
+//	);
 
 endmodule

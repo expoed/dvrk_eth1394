@@ -1,5 +1,5 @@
 #ChipScope Pro Analyzer Project File, Version 3.0
-#Thu Jul 24 09:57:47 EDT 2014
+#Thu Jul 24 14:25:56 EDT 2014
 deviceChain.deviceName0=XC6SLX45
 deviceChain.iRLength0=6
 deviceChain.name0=MyDevice0
@@ -31,10 +31,10 @@ unit.0.0.1.WIDTH1=1.0
 unit.0.0.1.X1=0.0
 unit.0.0.1.Y1=0.45698926
 unit.0.0.MFBitsA0=X
-unit.0.0.MFBitsA1=X
+unit.0.0.MFBitsA1=0
 unit.0.0.MFBitsA2=X
 unit.0.0.MFBitsA3=X
-unit.0.0.MFBitsA4=X
+unit.0.0.MFBitsA4=0
 unit.0.0.MFBitsA5=XXXXXXXXXXXXXXXX
 unit.0.0.MFBitsA6=000000010000
 unit.0.0.MFBitsA7=XXXXXXXXXXXXXXXX
@@ -91,7 +91,7 @@ unit.0.0.SQContiguous0=0
 unit.0.0.SequencerOn=0
 unit.0.0.TCActive=0
 unit.0.0.TCAdvanced0=0
-unit.0.0.TCCondition0_0=M6
+unit.0.0.TCCondition0_0=M4
 unit.0.0.TCCondition0_1=
 unit.0.0.TCConditionType0=0
 unit.0.0.TCCount=1
@@ -175,7 +175,7 @@ unit.0.0.port.-1.s.0.color=java.awt.Color[r\=0,g\=0,b\=124]
 unit.0.0.port.-1.s.0.name=DataPort[0]
 unit.0.0.port.-1.s.0.orderindex=-1
 unit.0.0.port.-1.s.0.visible=1
-unit.0.0.port.-1.s.1.alias=CSN
+unit.0.0.port.-1.s.1.alias=RSTN
 unit.0.0.port.-1.s.1.color=java.awt.Color[r\=0,g\=0,b\=124]
 unit.0.0.port.-1.s.1.name=DataPort[1]
 unit.0.0.port.-1.s.1.orderindex=-1
@@ -530,7 +530,7 @@ unit.0.0.port.1.b.0.unsignedScaleFactor=1.0
 unit.0.0.port.1.b.0.visible=1
 unit.0.0.port.1.buscount=1
 unit.0.0.port.1.channelcount=1
-unit.0.0.port.1.s.0.alias=CSN
+unit.0.0.port.1.s.0.alias=RSTN
 unit.0.0.port.1.s.0.color=java.awt.Color[r\=0,g\=0,b\=124]
 unit.0.0.port.1.s.0.name=TriggerPort1[0]
 unit.0.0.port.1.s.0.orderindex=-1
@@ -1047,7 +1047,7 @@ unit.0.0.waveform.posn.29.channel=64
 unit.0.0.waveform.posn.29.name=DataPort[64]
 unit.0.0.waveform.posn.29.type=signal
 unit.0.0.waveform.posn.3.channel=1
-unit.0.0.waveform.posn.3.name=CSN
+unit.0.0.waveform.posn.3.name=RSTN
 unit.0.0.waveform.posn.3.radix=1
 unit.0.0.waveform.posn.3.type=signal
 unit.0.0.waveform.posn.30.channel=64

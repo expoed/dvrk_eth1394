@@ -169,7 +169,7 @@ module Initialization(
 					WR <= 1;
 					offset <= 8'h74;
 					length <= 1;
-					writeData <= 16'h7CE0;
+					writeData <= 16'h74F2;
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
@@ -195,7 +195,7 @@ module Initialization(
 					WR <= 1;
 					offset <= 8'h82;
 					length <= 1;
-					writeData <= 16'h0230;
+					writeData <= 16'h0030;
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
@@ -314,7 +314,7 @@ module Initialization(
 					writeData <= readData | 16'h0001;
 				end
 				else if(state == Read1 || state == Write1) begin
-					NewCommand <= 0;//1 For Verification Part
+					NewCommand <= 1;//1 For Verification Part
 					step <= step + 1;
 				end
 			end
@@ -322,7 +322,7 @@ module Initialization(
 //			else if(step == 19) begin
 //				if(state == Read2 || state == Write2) begin
 //					WR <= 0;
-//					offset <= 8'h70;
+//					offset <= 8'h9C;
 //					length <= 1;
 //					writeData <= 16'bz;
 //				end
@@ -334,7 +334,7 @@ module Initialization(
 //			else if(step == 20) begin
 //				if(state == Read2 || state == Write2) begin
 //					WR <= 0;
-//					offset <= 8'h74;
+//					offset <= 8'h82;
 //					length <= 1;
 //					writeData <= 16'bz;
 //				end
@@ -342,9 +342,6 @@ module Initialization(
 //					NewCommand <= 0;
 //					step <= step + 1;
 //				end
-//			end
-//			else if(step == 20) begin
-//				initDone <= 1;
 //			end
 //************************* Verification Ends *****************************
 			else if(step == 19) begin
