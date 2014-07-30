@@ -1,0 +1,4 @@
+verilog work "ipcore_dir/Mem_ila.v"
+verilog work "ipcore_dir/Mem_icon.v"
+verilog work "ipcore_dir/BlockMem.v"
+verilog work "MemTest.v"

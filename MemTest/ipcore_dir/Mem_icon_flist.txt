@@ -1,0 +1,12 @@
+# Output products list for <Mem_icon>
+Mem_icon.asy
+Mem_icon.ejp
+Mem_icon.gise
+Mem_icon.ngc
+Mem_icon.v
+Mem_icon.veo
+Mem_icon.xco
+Mem_icon.xise
+Mem_icon_flist.txt
+Mem_icon_readme.txt
+Mem_icon_xmdf.tcl

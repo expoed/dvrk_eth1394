@@ -31,16 +31,18 @@ module EthernetTest(
 	output wire LED	
     );
 	
-	reg sigLed;
+	reg sigLed,lled;
 	always @(posedge clk40m) begin
-		if(!INTRN)
-			sigLed = ~sigLed;
+		sigLed <= INTRN;
+		if(sigLed && ~INTRN) begin
+			lled <= ~lled;
+		end
 	end
-	assign LED = sigLed;
+
+	assign LED = lled;
 	assign CSN = 0;//Always select
 	reg[12:0] packetLen;
 
-	
 //============================= Register Module =============================	
 	wire[3:0] stateReg;
 	wire[15:0] readData, writeData;
@@ -136,9 +138,9 @@ module EthernetTest(
 			recvEn <= 0;
 		end
 		else if(initDone == 1) begin
-			//transEn <= 1;
-			//packetLen <= 16;
-			recvEn <= 1;
+			transEn <= 1;
+			packetLen <= 65;
+			//recvEn <= 1;
 		end
 	end
 

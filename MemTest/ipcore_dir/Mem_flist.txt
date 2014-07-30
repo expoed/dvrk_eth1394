@@ -1,0 +1,12 @@
+# Output products list for <Mem>
+Mem.asy
+Mem.ejp
+Mem.gise
+Mem.ngc
+Mem.v
+Mem.veo
+Mem.xco
+Mem.xise
+Mem_flist.txt
+Mem_readme.txt
+Mem_xmdf.tcl

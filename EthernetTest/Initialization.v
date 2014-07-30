@@ -130,7 +130,7 @@ module Initialization(
 					WR <= 1;
 					offset <= 8'h70;
 					length <= 1;
-					writeData <= 16'h01EE;
+					writeData <= 16'h01EA;//EA to unable padding & Auto Queue Flush
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
@@ -314,7 +314,7 @@ module Initialization(
 					writeData <= readData | 16'h0001;
 				end
 				else if(state == Read1 || state == Write1) begin
-					NewCommand <= 1;//1 For Verification Part
+					NewCommand <= 0;//1 For Verification Part
 					step <= step + 1;
 				end
 			end

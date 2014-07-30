@@ -47,6 +47,7 @@ module Transmission(
 
 	reg[3:0] step;
 	reg[12:0] lengthInWord;
+	reg[23:0] count;
 	
 	always @(posedge clk40m or negedge reset) begin
 		if(!reset) begin
@@ -261,33 +262,35 @@ module Transmission(
 //========================= step 13: Exit
 				else if(step == 13) begin
 					if(state == Wait) begin
-						transmitStatus <= 2'b10;//set transmitStatus 00 to loop, 10 to stop
+						count <= count + 1;
+						if(&count)
+							transmitStatus <= 2'b00;//set transmitStatus 00 to loop, 10 to stop
 					end
 				end
 			end
 		end
 	end
 	
-//	wire[35:0] ILAControl;
-//	Ethernet_icon icon(.CONTROL0(ILAControl));
-//	Ethernet_ila ila(
-//	    .CONTROL(ILAControl),
-//		.CLK(clk40m),
-//		.TRIG0(0),
-//		.TRIG1(transEn),
-//		.TRIG2(0),
-//		.TRIG3(reset),
-//		.TRIG4(packetLen),
-//		.TRIG5(writeData),
-//		.TRIG6(readData),
-//		.TRIG7(WR),
-//		.TRIG8(NewCommand),
-//		.TRIG9(offset),
-//		.TRIG10(length),
-//		.TRIG11(transmitStatus),
-//		.TRIG12(state),
-//		.TRIG13(step),
-//		.TRIG14(Dummy_Write)
-//	);
+	wire[35:0] ILAControl;
+	Ethernet_icon icon(.CONTROL0(ILAControl));
+	Ethernet_ila ila(
+	    .CONTROL(ILAControl),
+		.CLK(clk40m),
+		.TRIG0(0),
+		.TRIG1(transEn),
+		.TRIG2(0),
+		.TRIG3(reset),
+		.TRIG4(packetLen),
+		.TRIG5(writeData),
+		.TRIG6(readData),
+		.TRIG7(WR),
+		.TRIG8(NewCommand),
+		.TRIG9(offset),
+		.TRIG10(length),
+		.TRIG11(transmitStatus),
+		.TRIG12(state),
+		.TRIG13(step),
+		.TRIG14(Dummy_Write)
+	);
 
 endmodule

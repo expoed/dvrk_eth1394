@@ -1,0 +1,14 @@
+# Output products list for <Mem_ila>
+Mem_ila.asy
+Mem_ila.cdc
+Mem_ila.ejp
+Mem_ila.gise
+Mem_ila.ncf
+Mem_ila.ngc
+Mem_ila.v
+Mem_ila.veo
+Mem_ila.xco
+Mem_ila.xise
+Mem_ila_flist.txt
+Mem_ila_readme.txt
+Mem_ila_xmdf.tcl

@@ -424,25 +424,25 @@ module Reception(
 	end
 	
 	
-	wire[35:0] ILAControl;
-	Ethernet_icon icon(.CONTROL0(ILAControl));
-	Ethernet_ila ila(
-	    .CONTROL(ILAControl),
-		.CLK(clk40m),
-		.TRIG0(recvEn),//1
-		.TRIG1(reset),//1
-		.TRIG2(WR),//1
-		.TRIG3(NewCommand),//1
-		.TRIG4(offset),//16
-		.TRIG5(writeData),//16
-		.TRIG6(readData),//16
-		.TRIG7(Dummy_Read),//1
-		.TRIG8(0),//1
-		.TRIG9(rxFrameCount),//16
-		.TRIG10(0),//1
-		.TRIG11(receiveStatus),//16
-		.TRIG12(state),//4
-		.TRIG13(step[4:1]),//4
-		.TRIG14(step[0])//1
-	);
+//	wire[35:0] ILAControl;
+//	Ethernet_icon icon(.CONTROL0(ILAControl));
+//	Ethernet_ila ila(
+//	    .CONTROL(ILAControl),
+//		.CLK(clk40m),
+//		.TRIG0(recvEn),//1
+//		.TRIG1(reset),//1
+//		.TRIG2(WR),//1
+//		.TRIG3(NewCommand),//1
+//		.TRIG4(offset),//16
+//		.TRIG5(writeData),//16
+//		.TRIG6(readData),//16
+//		.TRIG7(Dummy_Read),//1
+//		.TRIG8(0),//1
+//		.TRIG9(rxFrameCount),//16
+//		.TRIG10(0),//1
+//		.TRIG11(receiveStatus),//16
+//		.TRIG12(state),//4
+//		.TRIG13(step[4:1]),//4
+//		.TRIG14(step[0])//1
+//	);
 endmodule

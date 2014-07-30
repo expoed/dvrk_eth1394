@@ -1,5 +1,5 @@
 #ChipScope Pro Analyzer Project File, Version 3.0
-#Mon Jul 28 15:59:17 EDT 2014
+#Tue Jul 29 19:29:27 EDT 2014
 deviceChain.deviceName0=XC6SLX45
 deviceChain.iRLength0=6
 deviceChain.name0=MyDevice0
@@ -35,7 +35,7 @@ unit.0.0.MFBitsA1=1
 unit.0.0.MFBitsA10=X
 unit.0.0.MFBitsA11=XXXXXXXXXXXXXXXX
 unit.0.0.MFBitsA12=0000
-unit.0.0.MFBitsA13=XXXX
+unit.0.0.MFBitsA13=0000
 unit.0.0.MFBitsA14=X
 unit.0.0.MFBitsA2=X
 unit.0.0.MFBitsA3=X
@@ -127,7 +127,7 @@ unit.0.0.SQContiguous0=0
 unit.0.0.SequencerOn=0
 unit.0.0.TCActive=0
 unit.0.0.TCAdvanced0=0
-unit.0.0.TCCondition0_0=M1
+unit.0.0.TCCondition0_0=M13
 unit.0.0.TCCondition0_1=
 unit.0.0.TCConditionType0=0
 unit.0.0.TCCount=1
