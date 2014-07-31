@@ -1,11 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <report-views version="2.0" >
  <header>
-  <DateModified>2014-07-30T10:12:09</DateModified>
+  <DateModified>2014-07-30T13:04:13</DateModified>
   <ModuleName>MemTest</ModuleName>
   <SummaryTimeStamp>2014-07-30T09:57:28</SummaryTimeStamp>
   <SavedFilePath>C:/Users/Qian/Desktop/Project/Ethernet/MemTest/iseconfig/MemTest.xreport</SavedFilePath>
-  <ImplementationReportsDirectory>C:/Users/Qian/Desktop/Project/Ethernet/MemTest</ImplementationReportsDirectory>
+  <ImplementationReportsDirectory>C:/Users/Qian/Desktop/Project/Ethernet/MemTest\</ImplementationReportsDirectory>
   <DateInitialized>2014-07-30T09:51:47</DateInitialized>
   <EnableMessageFiltering>false</EnableMessageFiltering>
  </header>

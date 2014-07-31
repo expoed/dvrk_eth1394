@@ -28,7 +28,8 @@ module EthernetTest(
 	output wire RDN,
 	output wire WRN,
 	inout [15:0] SD,
-	output wire LED	
+	output wire LED,
+	input[3:0] wenid
     );
 	
 	reg sigLed,lled;
@@ -101,7 +102,8 @@ module EthernetTest(
 		.Dummy_Write(Dummy_Write),
 		.state(stateReg),
 		.transEn(transEn),
-		.transmitStatus(transmitStatus)
+		.transmitStatus(transmitStatus),
+		.wenid(wenid)
 	);
 	
 //============================= Reception Module =============================
@@ -140,7 +142,7 @@ module EthernetTest(
 		else if(initDone == 1) begin
 			transEn <= 1;
 			packetLen <= 65;
-			//recvEn <= 1;
+//			recvEn <= 1;
 		end
 	end
 

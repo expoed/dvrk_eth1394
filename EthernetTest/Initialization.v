@@ -124,21 +124,34 @@ module Initialization(
 					step <= step + 1;
 				end
 			end
-//========================= step 5: Enable QMU Transmit Flow Control
+//========================= step 5: Enable QMU Transmit Frame Data Pointer Auto Increment
 			else if(step == 5) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
-					offset <= 8'h70;
+					offset <= 8'h84;
 					length <= 1;
-					writeData <= 16'h01EA;//EA to unable padding & Auto Queue Flush
+					writeData <= 16'h4000;
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
 					step <= step + 1;
 				end
 			end
-//========================= step 6: Enable QMU Receive Frame Data Pointer Auto Increment
+//========================= step 6: Enable QMU Transmit Flow Control
 			else if(step == 6) begin
+				if(state == Read2 || state == Write2) begin
+					WR <= 1;
+					offset <= 8'h70;
+					length <= 1;
+					writeData <= 16'h01EE;
+				end
+				else if(state == Read1 || state == Write1) begin
+					NewCommand <= 1;
+					step <= step + 1;
+				end
+			end
+//========================= step 7: Enable QMU Receive Frame Data Pointer Auto Increment
+			else if(step == 7) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'h86;
@@ -150,8 +163,8 @@ module Initialization(
 					step <= step + 1;
 				end
 			end
-//========================= step 7: Configure Receive Frame Threshold for 1 Frame
-			else if(step == 7) begin
+//========================= step 8: Configure Receive Frame Threshold for 1 Frame
+			else if(step == 8) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'h9C;
@@ -163,21 +176,21 @@ module Initialization(
 					step <= step + 1;
 				end
 			end
-//========================= step 8: Enable QMU Receive Flow Control
-			else if(step == 8) begin
+//========================= step 9: Enable QMU Receive Flow Control
+			else if(step == 9) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'h74;
 					length <= 1;
-					writeData <= 16'h74F2;
+					writeData <= 16'h74F2;//7CE0
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
 					step <= step + 1;
 				end
 			end
-//========================= step 9: Enable QMU Receive ICMP/UDP Lite Frame checksum verification
-			else if(step == 9) begin
+//========================= step 10: Enable QMU Receive ICMP/UDP Lite Frame checksum verification
+			else if(step == 10) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'h76;
@@ -189,22 +202,22 @@ module Initialization(
 					step <= step + 1;
 				end
 			end			
-//========================= step 10: Enable QMU Receive IP Header 2-Byte Offset
-			else if(step == 10) begin
+//========================= step 11: Enable QMU Receive IP Header 2-Byte Offset
+			else if(step == 11) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'h82;
 					length <= 1;
-					writeData <= 16'h0030;
+					writeData <= 16'h0030;//0230
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
 					step <= step + 1;
 				end
 			end	
-//========================= step 11: Force Link in Half Duplex if Auto-Negotiation is Failed, Restart Port 1 Auto-Negotiation
+//========================= step 12: Force Link in Half Duplex if Auto-Negotiation is Failed, Restart Port 1 Auto-Negotiation
 //========================= (1) Read the Reg First
-			else if(step == 11) begin
+			else if(step == 12) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 0;
 					offset <= 8'hF6;
@@ -216,9 +229,9 @@ module Initialization(
 					step <= step + 1;
 				end
 			end
-//========================= step 12: Force Link in Half Duplex if Auto-Negotiation is Failed, Restart Port 1 Auto-Negotiation
+//========================= step 13: Force Link in Half Duplex if Auto-Negotiation is Failed, Restart Port 1 Auto-Negotiation
 //========================= (2) Write Back the Reg
-			else if(step == 12) begin
+			else if(step == 13) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'hF6;
@@ -232,8 +245,8 @@ module Initialization(
 					step <= step + 1;
 				end
 			end	
-//========================= step 13: Clear the Interrupts Status
-			else if(step == 13) begin
+//========================= step 14: Clear the Interrupts Status
+			else if(step == 14) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'h92;
@@ -245,22 +258,22 @@ module Initialization(
 					step <= step + 1;
 				end
 			end	
-//========================= step 14: Enable ... interrupts if your host processor can handle the interrupt, otherwise no need.
-			else if(step == 14) begin
+//========================= step 15: Enable ... interrupts if your host processor can handle the interrupt, otherwise no need.
+			else if(step == 15) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'h90;
 					length <= 1;
-					writeData <= 16'hEB00;
+					writeData <= 16'h6000;//Transmit interrupt + receive interrupt
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
 					step <= step + 1;
 				end
 			end
-//========================= step 15: Enable QMU Transmit
+//========================= step 16: Enable QMU Transmit
 //========================= (1) Read Reg
-			else if(step == 15) begin
+			else if(step == 16) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 0;
 					offset <= 8'h70;
@@ -272,9 +285,9 @@ module Initialization(
 					step <= step + 1;
 				end
 			end
-//========================= step 16: Enable QMU Transmit
+//========================= step 17: Enable QMU Transmit
 //========================= (2) Write Reg
-			else if(step == 16) begin
+			else if(step == 17) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'h70;
@@ -288,9 +301,9 @@ module Initialization(
 					step <= step + 1;
 				end
 			end
-//========================= step 17: Enable QMU Receive
+//========================= step 18: Enable QMU Receive
 //========================= (1) Read Reg
-			else if(step == 17) begin
+			else if(step == 18) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 0;
 					offset <= 8'h74;
@@ -302,9 +315,9 @@ module Initialization(
 					step <= step + 1;
 				end
 			end
-//========================= step 18: Enable QMU Receive
+//========================= step 19: Enable QMU Receive
 //========================= (2) Write Reg
-			else if(step == 18) begin
+			else if(step == 19) begin
 				if(state == Read2 || state == Write2) begin
 					WR <= 1;
 					offset <= 8'h74;
@@ -344,7 +357,8 @@ module Initialization(
 //				end
 //			end
 //************************* Verification Ends *****************************
-			else if(step == 19) begin
+//******************************************************
+			else if(step == 20) begin
 				if(state == Read2 || state == Write2) begin
 					initDone <= 1;
 				end

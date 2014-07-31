@@ -31,8 +31,9 @@ module Transmission(
 	output reg Dummy_Write,
 	input[3:0] state,
 	input transEn,
-	output reg[1:0] transmitStatus//00: Wait, 01: Trans, 10: Done
-    );
+	output reg[1:0] transmitStatus,//00: Wait, 01: Trans, 10: Done
+    input [3:0] wenid
+	);
 		
 	localparam [3:0] Addr0 = 4'b0000,
 					 Addr1 = 4'b0001,
@@ -45,15 +46,17 @@ module Transmission(
 					 Write2 = 4'b1000,
 					 Wait = 4'b1001;
 
-	reg[3:0] step;
+	reg[4:0] step;
 	reg[12:0] lengthInWord;
-	reg[23:0] count;
+	reg[24:0] count;
+	reg[3:0] prevWenid;
+	reg[19:0] wenidCount;
 	
 	always @(posedge clk40m or negedge reset) begin
 		if(!reset) begin
 			writeData <= 16'bz;
 			NewCommand <= 0;
-			transmitStatus <= 2'b00;//Waiting
+			transmitStatus <= 2'b10;//Waiting
 			step <= 0;
 			Dummy_Write <= 0;
 		end
@@ -102,7 +105,7 @@ module Transmission(
 						writeData <= 16'h0000;
 					end
 					else if(state == Read1 || state == Write1) begin
-						NewCommand <= 1;//Actually stay the same
+						NewCommand <= 1;
 						step <= step + 1;
 					end
 				end
@@ -116,7 +119,7 @@ module Transmission(
 						writeData <= 16'hz;
 					end
 					else if(state == Read1 || state == Write1) begin
-						NewCommand <= 1;//Actually stay the same
+						NewCommand <= 1;
 						step <= step + 1;
 					end
 				end
@@ -131,7 +134,7 @@ module Transmission(
 					else if(state == Addr0) begin				
 						writeData <= readData | (16'h0001 << 3);
 					end
-					else if(state == Read1 || state == Write1) begin
+					else if(state == Read1 || state == Write1) begin						
 						NewCommand <= 1;
 						step <= step + 1;
 						Dummy_Write <= 1;
@@ -156,27 +159,23 @@ module Transmission(
 //========================= step 7: Transmitting: Writing Data
 				else if(step == 7) begin
 					if(state == Write2) begin
-						writeData <= 16'h2345;
+						if(lengthInWord == 16'h0022)
+							writeData <= 16'h2301;
+						else if(lengthInWord == 16'h0021)
+							writeData <= 16'h6745;
+						else if(lengthInWord == 16'h0020)
+							writeData <= 16'hAB89;
+						else if(lengthInWord == 16'h001F)
+							writeData <= 16'h2301;
+						else if(lengthInWord == 16'h001E)
+							writeData <= 16'h6745;
+						else if(lengthInWord == 16'h001D)
+							writeData <= 16'hAB89;
+						else if(lengthInWord == 16'h001C)
+							writeData <= 16'h4100;
+						else
+							writeData <= 16'hCDEF;
 						lengthInWord <= lengthInWord - 1;
-						
-//						if (lengthInWord == 8)
-//							writeData <= 16'h0102;
-//						else if (lengthInWord == 7)
-//							writeData <= 16'h0304;
-//						else if (lengthInWord == 6)
-//							writeData <= 16'hEEFF;
-//						else if (lengthInWord == 5) 
-//							writeData <= 16'hAAAA;
-//						else if (lengthInWord == 4)
-//							writeData <= 16'h0304;
-//						else if (lengthInWord == 3)
-//							writeData <= 16'hEEFF;
-//						else if (lengthInWord == 2)
-//							writeData <= 16'h0801;
-//						else if (lengthInWord == 1)
-//							writeData <= 16'h99FF;
-//						else
-//							writeData <= 16'h6677;
 					end
 					else if(state == Write1) begin
 						if(lengthInWord == 0) begin
@@ -252,19 +251,40 @@ module Transmission(
 						WR <= 1;
 						offset <= 8'h90;
 						length <= 1;
-						writeData <= 16'hEB00;
+						writeData <= 16'h6000;
 					end
 					else if(state == Read1 || state == Write1) begin
-						NewCommand <= 0;
+						NewCommand <= 1;
 						step <= step + 1;
 					end
 				end
-//========================= step 13: Exit
+//*************************************************************************************
 				else if(step == 13) begin
+					if(state == Read2 || state == Write2) begin
+						WR <= 0;
+						offset <= 8'h78;
+						length <= 1;
+						writeData <= 16'hFFFF;
+					end
+					else if(state == Read1 || state == Write1) begin
+						NewCommand <= 0;
+						step <= 17;
+					end
+				end
+//*************************************************************************************
+//========================= step 13: Exit
+				else if(step == 17) begin
 					if(state == Wait) begin
-						count <= count + 1;
-						if(&count)
-							transmitStatus <= 2'b00;//set transmitStatus 00 to loop, 10 to stop
+						transmitStatus <= 2'b10;//set transmitStatus 00 to loop, 10 to stop
+					end
+				end
+			end
+			else if(transmitStatus == 2'b10) begin
+				wenidCount <= wenidCount + 1;
+				if(wenidCount == 0) begin
+					prevWenid <= wenid;
+					if(prevWenid != wenid) begin
+						transmitStatus <= 2'b00;
 					end
 				end
 			end
@@ -289,7 +309,7 @@ module Transmission(
 		.TRIG10(length),
 		.TRIG11(transmitStatus),
 		.TRIG12(state),
-		.TRIG13(step),
+		.TRIG13(step[3:0]),
 		.TRIG14(Dummy_Write)
 	);
 

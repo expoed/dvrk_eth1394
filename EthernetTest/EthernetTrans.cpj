@@ -1,5 +1,5 @@
 #ChipScope Pro Analyzer Project File, Version 3.0
-#Tue Jul 29 19:29:27 EDT 2014
+#Wed Jul 30 16:33:35 EDT 2014
 deviceChain.deviceName0=XC6SLX45
 deviceChain.iRLength0=6
 deviceChain.name0=MyDevice0
@@ -15,8 +15,8 @@ mdiUnit0=0
 mdiUnit1=0
 navigatorHeight=0.17854463615903976
 navigatorHeightLast=0.17929482370592648
-navigatorWidth=0.1799163179916318
-navigatorWidthLast=0.1799163179916318
+navigatorWidth=0.17978113600833767
+navigatorWidthLast=0.17978113600833767
 signalDisplayPath=0
 unit.-1.-1.username=
 unit.0.0.0.HEIGHT0=0.48817205
@@ -35,7 +35,7 @@ unit.0.0.MFBitsA1=1
 unit.0.0.MFBitsA10=X
 unit.0.0.MFBitsA11=XXXXXXXXXXXXXXXX
 unit.0.0.MFBitsA12=0000
-unit.0.0.MFBitsA13=0000
+unit.0.0.MFBitsA13=1000
 unit.0.0.MFBitsA14=X
 unit.0.0.MFBitsA2=X
 unit.0.0.MFBitsA3=X

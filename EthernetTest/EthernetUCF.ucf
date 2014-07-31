@@ -129,10 +129,10 @@ NET  "LED"        LOC = "N22"     | IOSTANDARD = "LVCMOS33";
 ################################################################################
 # Board ID
 ################################################################################
-#NET  "wenid[0]"   LOC = "P5"      | IOSTANDARD = "LVCMOS33" | PULLUP;
-#NET  "wenid[1]"   LOC = "M4"      | IOSTANDARD = "LVCMOS33" | PULLUP;
-#NET  "wenid[2]"   LOC = "N3"      | IOSTANDARD = "LVCMOS33" | PULLUP;
-#NET  "wenid[3]"   LOC = "N4"      | IOSTANDARD = "LVCMOS33" | PULLUP;
+NET  "wenid[0]"   LOC = "P5"      | IOSTANDARD = "LVCMOS33" | PULLUP;
+NET  "wenid[1]"   LOC = "M4"      | IOSTANDARD = "LVCMOS33" | PULLUP;
+NET  "wenid[2]"   LOC = "N3"      | IOSTANDARD = "LVCMOS33" | PULLUP;
+NET  "wenid[3]"   LOC = "N4"      | IOSTANDARD = "LVCMOS33" | PULLUP;
 
 ################################################################################
 # Soft JTAG
