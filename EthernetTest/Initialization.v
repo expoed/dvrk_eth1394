@@ -94,7 +94,7 @@ module Initialization(
 					writeData <= 16'h89AB;
 				end
 				else if(state == Read1 || state == Write1) begin
-					NewCommand <= 1;//Actually stay the same
+					NewCommand <= 1;
 					step <= step + 1;
 				end
 			end

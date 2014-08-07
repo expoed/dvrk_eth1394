@@ -140,9 +140,9 @@ module EthernetTest(
 			recvEn <= 0;
 		end
 		else if(initDone == 1) begin
-			transEn <= 1;
-			packetLen <= 65;
-//			recvEn <= 1;
+//			transEn <= 1;
+//			packetLen <= 68;
+			recvEn <= 1;
 		end
 	end
 

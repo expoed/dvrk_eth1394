@@ -48,7 +48,7 @@ module Reception(
 	reg[12:0] lengthInWord;
 	reg[8:0] rxFrameCount;
 	reg[11:0] rxPacketLength;
-	reg[15:0] controlWord, byteCount, tempReadData;
+	reg[15:0] controlWord, byteCount, tempReadData;//tempReadData is swaped bytewise
 	
 	
 	always @(posedge clk40m or negedge reset) begin
@@ -348,7 +348,7 @@ module Reception(
 				else if(step == 20) begin
 					if(state == Read0) begin
 						if(lengthInWord > 0) begin
-							tempReadData <= readData;//Ignore the first tempReadData, it should be equal to byteCount
+							tempReadData <= {readData[7:0],readData[15:8]};//Ignore the first tempReadData, it should be equal to byteCount
 							lengthInWord <= lengthInWord - 1;
 						end
 					end
@@ -370,7 +370,7 @@ module Reception(
 						writeData <= 16'hz;
 					end
 					else if(state == Addr0)
-						tempReadData <= readData;//Read the last tempReadData
+						tempReadData <= {readData[7:0],readData[15:8]};//Read the last tempReadData
 					else if(state == Read1 || state == Write1) begin
 						NewCommand <= 1;
 						step <= step + 1;
@@ -406,7 +406,7 @@ module Reception(
 						WR <= 1;
 						offset <= 8'h90;
 						length <= 1;
-						writeData <= 16'hEB00;
+						writeData <= 16'h6000;//Rx + Tx interrupt
 					end
 					else if(state == Read1 || state == Write1) begin
 						NewCommand <= 0;
@@ -424,26 +424,26 @@ module Reception(
 	end
 	
 	
-//	wire[35:0] ILAControl;
-//	Ethernet_icon icon(.CONTROL0(ILAControl));
-//	Ethernet_ila ila(
-//	    .CONTROL(ILAControl),
-//		.CLK(clk40m),
-//		.TRIG0(recvEn),//1
-//		.TRIG1(reset),//1
-//		.TRIG2(WR),//1
-//		.TRIG3(NewCommand),//1
-//		.TRIG4(offset),//16
-//		.TRIG5(writeData),//16
-//		.TRIG6(readData),//16
-//		.TRIG7(Dummy_Read),//1
-//		.TRIG8(0),//1
-//		.TRIG9(rxFrameCount),//16
-//		.TRIG10(0),//1
-//		.TRIG11(receiveStatus),//16
-//		.TRIG12(state),//4
-//		.TRIG13(step[4:1]),//4
-//		.TRIG14(step[0])//1
-//	);
+	wire[35:0] ILAControl;
+	Ethernet_icon icon(.CONTROL0(ILAControl));
+	Ethernet_ila ila(
+	    .CONTROL(ILAControl),
+		.CLK(clk40m),
+		.TRIG0(recvEn),//1
+		.TRIG1(reset),//1
+		.TRIG2(WR),//1
+		.TRIG3(NewCommand),//1
+		.TRIG4(offset),//16
+		.TRIG5(writeData),//16
+		.TRIG6(readData),//16
+		.TRIG7(Dummy_Read),//1
+		.TRIG8(0),//1
+		.TRIG9(rxFrameCount),//16
+		.TRIG10(0),//1
+		.TRIG11(receiveStatus),//16
+		.TRIG12(state),//4
+		.TRIG13(step[4:1]),//4
+		.TRIG14(step[0])//1
+	);
 
 endmodule

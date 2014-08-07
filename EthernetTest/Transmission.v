@@ -47,16 +47,15 @@ module Transmission(
 					 Wait = 4'b1001;
 
 	reg[4:0] step;
-	reg[12:0] lengthInWord;
-	reg[24:0] count;
-	reg[3:0] prevWenid;
-	reg[19:0] wenidCount;
+	reg[12:0] lengthInWord, countDown;
+	reg[3:0] prevWenid;//record the previous wenid
+	reg[19:0] wenidCount;//Like debounce
 	
 	always @(posedge clk40m or negedge reset) begin
 		if(!reset) begin
 			writeData <= 16'bz;
 			NewCommand <= 0;
-			transmitStatus <= 2'b10;//Waiting
+			transmitStatus <= 2'b10;
 			step <= 0;
 			Dummy_Write <= 0;
 		end
@@ -154,31 +153,56 @@ module Transmission(
 					else if(state == Write1) begin
 						step <= step + 1;
 						lengthInWord <= ((packetLen + 3)& ~16'h0003)>>1;
+						countDown <= ((packetLen + 3)& ~16'h0003)>>1;//The same with lengthInWord
 					end
 				end
 //========================= step 7: Transmitting: Writing Data
+//Data Frame(from the PC side):
+//	Destination MAC + Source MAC + length + Data
+//			6		+	  6		 +	  2(bytes)
 				else if(step == 7) begin
 					if(state == Write2) begin
-						if(lengthInWord == 16'h0022)
+						//Destination MAC
+						if(countDown == lengthInWord)
+							writeData <= 16'h1234;
+						else if(countDown == lengthInWord - 4'h1)
+							writeData <= 16'h5678;
+						else if(countDown == lengthInWord - 4'h2)
+							writeData <= 16'h9ABC;
+						//Source MAC
+						else if(countDown == lengthInWord - 4'h3)
 							writeData <= 16'h2301;
-						else if(lengthInWord == 16'h0021)
+						else if(countDown == lengthInWord - 4'h4)
 							writeData <= 16'h6745;
-						else if(lengthInWord == 16'h0020)
+						else if(countDown == lengthInWord - 4'h5)
 							writeData <= 16'hAB89;
-						else if(lengthInWord == 16'h001F)
-							writeData <= 16'h2301;
-						else if(lengthInWord == 16'h001E)
-							writeData <= 16'h6745;
-						else if(lengthInWord == 16'h001D)
-							writeData <= 16'hAB89;
-						else if(lengthInWord == 16'h001C)
-							writeData <= 16'h4100;
+						//Length
+						else if(countDown == lengthInWord - 4'h6)
+							writeData <= {packetLen[7:0],3'b000,packetLen[12:8]};
+						//Data
+						else if(countDown == lengthInWord - 4'h7)
+							writeData <= 16'h4820;
+						else if(countDown == lengthInWord - 4'h8)
+							writeData <= 16'h6c65;
+						else if(countDown == lengthInWord - 4'h9)
+							writeData <= 16'h6f6c;
+						else if(countDown == lengthInWord - 4'hA)
+							writeData <= 16'h5720;
+						else if(countDown == lengthInWord - 4'hB)
+							writeData <= 16'h726f;
+						else if(countDown == lengthInWord - 4'hC)
+							writeData <= 16'h646c;
+						else if(countDown == lengthInWord - 4'hD)
+							writeData <= 16'h2021;
+						//The last data transmitted
+						else if(countDown == 1)
+							writeData <= 16'h0256;
 						else
-							writeData <= 16'hCDEF;
-						lengthInWord <= lengthInWord - 1;
+							writeData <= {countDown[7:0],countDown[7:0]};
+						countDown <= countDown - 1;
 					end
 					else if(state == Write1) begin
-						if(lengthInWord == 0) begin
+						if(countDown == 0) begin
 							step <= step + 1;
 							Dummy_Write <= 0;
 							NewCommand <= 1;
@@ -251,29 +275,15 @@ module Transmission(
 						WR <= 1;
 						offset <= 8'h90;
 						length <= 1;
-						writeData <= 16'h6000;
-					end
-					else if(state == Read1 || state == Write1) begin
-						NewCommand <= 1;
-						step <= step + 1;
-					end
-				end
-//*************************************************************************************
-				else if(step == 13) begin
-					if(state == Read2 || state == Write2) begin
-						WR <= 0;
-						offset <= 8'h78;
-						length <= 1;
-						writeData <= 16'hFFFF;
+						writeData <= 16'h6000;//Rx + Tx interrupt
 					end
 					else if(state == Read1 || state == Write1) begin
 						NewCommand <= 0;
-						step <= 17;
+						step <= step + 1;
 					end
 				end
-//*************************************************************************************
 //========================= step 13: Exit
-				else if(step == 17) begin
+				else if(step == 13) begin
 					if(state == Wait) begin
 						transmitStatus <= 2'b10;//set transmitStatus 00 to loop, 10 to stop
 					end
@@ -291,26 +301,26 @@ module Transmission(
 		end
 	end
 	
-	wire[35:0] ILAControl;
-	Ethernet_icon icon(.CONTROL0(ILAControl));
-	Ethernet_ila ila(
-	    .CONTROL(ILAControl),
-		.CLK(clk40m),
-		.TRIG0(0),
-		.TRIG1(transEn),
-		.TRIG2(0),
-		.TRIG3(reset),
-		.TRIG4(packetLen),
-		.TRIG5(writeData),
-		.TRIG6(readData),
-		.TRIG7(WR),
-		.TRIG8(NewCommand),
-		.TRIG9(offset),
-		.TRIG10(length),
-		.TRIG11(transmitStatus),
-		.TRIG12(state),
-		.TRIG13(step[3:0]),
-		.TRIG14(Dummy_Write)
-	);
+//	wire[35:0] ILAControl;
+//	Ethernet_icon icon(.CONTROL0(ILAControl));
+//	Ethernet_ila ila(
+//	    .CONTROL(ILAControl),
+//		.CLK(clk40m),
+//		.TRIG0(0),
+//		.TRIG1(transEn),
+//		.TRIG2(0),
+//		.TRIG3(reset),
+//		.TRIG4(packetLen),
+//		.TRIG5(writeData),
+//		.TRIG6(readData),
+//		.TRIG7(WR),
+//		.TRIG8(NewCommand),
+//		.TRIG9(offset),
+//		.TRIG10(length),
+//		.TRIG11(transmitStatus),
+//		.TRIG12(state),
+//		.TRIG13(step[3:0]),
+//		.TRIG14(Dummy_Write)
+//	);
 
 endmodule

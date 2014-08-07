@@ -1,0 +1,12 @@
+# Output products list for <Firewire_icon>
+Firewire_icon.asy
+Firewire_icon.ejp
+Firewire_icon.gise
+Firewire_icon.ngc
+Firewire_icon.v
+Firewire_icon.veo
+Firewire_icon.xco
+Firewire_icon.xise
+Firewire_icon_flist.txt
+Firewire_icon_readme.txt
+Firewire_icon_xmdf.tcl

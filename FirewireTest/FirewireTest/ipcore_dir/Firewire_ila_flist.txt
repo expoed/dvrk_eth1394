@@ -1,0 +1,14 @@
+# Output products list for <Firewire_ila>
+Firewire_ila.asy
+Firewire_ila.cdc
+Firewire_ila.ejp
+Firewire_ila.gise
+Firewire_ila.ncf
+Firewire_ila.ngc
+Firewire_ila.v
+Firewire_ila.veo
+Firewire_ila.xco
+Firewire_ila.xise
+Firewire_ila_flist.txt
+Firewire_ila_readme.txt
+Firewire_ila_xmdf.tcl

@@ -1,4 +1,0 @@
-Ethernet
-========
-
-Ethernet module
