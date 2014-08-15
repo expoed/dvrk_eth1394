@@ -82,9 +82,9 @@ module Hub
 	// bit 5: Init finished or not
 	// bit 4:3: State of Ethernet Line
 	//			2'b00: Idle
-	//			2'b01: Hub -> PC(Transmission): PC Command Response
+	//			2'b01: Hub -> PC(Transmission): Broadcast Response
 	//			2'b10: PC -> Hub(Reception)   : PC Request
-	//			2'b11: Hub -> PC(Transmission): Broadcast Response
+	//			2'b11: Hub -> PC(Transmission): PC Command Response
 	// bit 2:0: State of FireWire Line
 	//		    3'b000: Idle
 	//		   	3'b001: Hub -> Nodes(Transmission): PC Request 
@@ -97,10 +97,10 @@ module Hub
 	
 	
 	// The hub has two operating mode:
-	//		0: PC commnad mode
-	//		1: BC mode
-	reg HubMode = 0;		
-	assign LED = HubMode;	// light: PC cmd mode; dark: BC mode
+	//		0: PC commnad mode		LED light
+	//		1: BC mode		  		LED dark
+	reg HubMode = 1;		
+	assign LED = HubMode;
 	
 	
 	always @(posedge sysclk or negedge RSTN) begin
@@ -108,7 +108,7 @@ module Hub
 			StatusManager <= 6'b0;// start initializing
 			num_node <= 4;
 			BC_Packet_Count <= 0;
-			HubMode <= ~HubMode;
+			HubMode <= 1;
 		end
 		else begin
 		//-------------------------------------------------------------
@@ -146,7 +146,7 @@ module Hub
 							StatusManager <= 6'b110000;
 					end
 				end
-				else if(StatusManager == 6'b100110) begin//waiting dor response
+				else if(StatusManager == 6'b100110) begin//waiting for response
 					if(RESP_RXed) begin
 						StatusManager <= 6'b111000;
 					end
@@ -179,13 +179,14 @@ module Hub
 				else if(StatusManager == 6'b100101) begin
 					if(ACK_RXed) begin
 						if(ACK_RESP == `ACK_DONE) begin// BC respond will follow
-							StatusManager <= 6'b100111;
+							StatusManager <= 6'b101111; // 101111: fast mode, 100111: normal mode
 							BC_Packet_Count <= 0;//reset the counter
 						end
 						else							// some error occurred
 							StatusManager <= 6'b100000;					
 					end
 				end
+				// --- normal mode ---
 				else if(StatusManager == 6'b100111) begin
 					if(BC_RESP_RXed) begin
 						if(BC_Packet_Count == num_node - 1) begin
@@ -197,6 +198,12 @@ module Hub
 					end
 				end
 				else if(StatusManager == 6'b101000) begin
+					if(Trans_Done) begin
+						StatusManager <= 6'b100011;
+					end
+				end
+				// --- fast mode ---
+				else if(StatusManager == 6'b101111) begin
 					if(Trans_Done) begin
 						StatusManager <= 6'b100011;
 					end
@@ -345,7 +352,31 @@ module Hub
 	// 2'b10: finished
 	wire[1:0] transmitStatus;
 
-	Transmission Trans(
+//	Transmission Trans(
+//		.sysclk(sysclk),
+//		.reset(RSTN),
+//		// register access parameters
+//		.offset(transoffset),
+//		.length(translength),
+//		.WR(transWR),
+//		.writeData(transwriteData),
+//		.readData(readData),
+//		.NewCommand(transNewCommand),
+//		.Dummy_Write(Dummy_Write),
+//		.state(stateReg),
+//		.transmitStatus(transmitStatus),
+//		// Hub RAM
+//		.mem_addr(trans_addrb),
+//		.mem_rdata(doutb),
+//		
+//		.Trans_Done(Trans_Done),		// out: trigger for completion
+//		.RESP_DATA_LEN(RESP_DATA_LEN),	// in: length of response (needed to be transmitted to PC)
+//		.StatusManager(StatusManager),	// in: current procedual status
+//		.num_node(num_node)				// in: number of nodes
+//	);
+	
+	// parallel acceleration
+	Transmission_Parallel Trans(
 		.sysclk(sysclk),
 		.reset(RSTN),
 		// register access parameters
@@ -365,8 +396,12 @@ module Hub
 		.Trans_Done(Trans_Done),		// out: trigger for completion
 		.RESP_DATA_LEN(RESP_DATA_LEN),	// in: length of response (needed to be transmitted to PC)
 		.StatusManager(StatusManager),	// in: current procedual status
-		.num_node(num_node)				// in: number of nodes
+		.num_node(num_node),			// in: number of nodes
+		
+		// for acceleration
+		.BC_RESP_RXed(BC_RESP_RXed)
 	);
+	
 	
 // --------------------------------------------------------------------------
 // Ethetnet Reception Module
@@ -486,30 +521,30 @@ module Hub
 // --------------------------------------------------------------------------
 // Chipscope module, for debugging
 // --------------------------------------------------------------------------
-	wire[35:0] ctrl;
-	Hub_icon ICON(
-		.CONTROL0(ctrl)
-	);
-	HUB_ila ILA(
-		.CONTROL(ctrl),
-		.CLK(sysclk),
-		.TRIG0(Init_Done),		//1
-		.TRIG1(PC_REQ_NEW),		//1
-		.TRIG2(PC_REQ_TXed),	//1
-		.TRIG3(ACK_RXed),		//1
-		.TRIG4(EthernetRegMaster),//4
-		.TRIG5(ACK_RESP),		//4
-		.TRIG6({receiveStatus,transmitStatus}),//4
-		.TRIG7(stateReg),		//4
-		.TRIG8(StatusManager),	//8
-		.TRIG9(0),				//8
-		.TRIG10(PC_REQ_LEN),	//8
-		.TRIG11(RESP_DATA_LEN),	//8
-		.TRIG12(addra),			//16
-		.TRIG13(addrb),			//16
-		.TRIG14(dinb),			//32
-		.TRIG15(doutb)			//32
-	);
+//	wire[35:0] ctrl;
+//	Hub_icon ICON(
+//		.CONTROL0(ctrl)
+//	);
+//	HUB_ila ILA(
+//		.CONTROL(ctrl),
+//		.CLK(sysclk),
+//		.TRIG0(Init_Done),		//1
+//		.TRIG1(PC_REQ_NEW),		//1
+//		.TRIG2(PC_REQ_TXed),	//1
+//		.TRIG3(ACK_RXed),		//1
+//		.TRIG4(EthernetRegMaster),//4
+//		.TRIG5(ACK_RESP),		//4
+//		.TRIG6({receiveStatus,transmitStatus}),//4
+//		.TRIG7(stateReg),		//4
+//		.TRIG8(StatusManager),	//8
+//		.TRIG9(0),				//8
+//		.TRIG10(PC_REQ_LEN),	//8
+//		.TRIG11(RESP_DATA_LEN),	//8
+//		.TRIG12(addra),			//16
+//		.TRIG13(addrb),			//16
+//		.TRIG14(dinb),			//32
+//		.TRIG15(doutb)			//32
+//	);
 	
 endmodule
 
