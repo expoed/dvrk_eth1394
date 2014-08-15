@@ -1,0 +1,14 @@
+# Output products list for <HUB_ila>
+HUB_ila.asy
+HUB_ila.cdc
+HUB_ila.ejp
+HUB_ila.gise
+HUB_ila.ncf
+HUB_ila.ngc
+HUB_ila.v
+HUB_ila.veo
+HUB_ila.xco
+HUB_ila.xise
+HUB_ila_flist.txt
+HUB_ila_readme.txt
+HUB_ila_xmdf.tcl

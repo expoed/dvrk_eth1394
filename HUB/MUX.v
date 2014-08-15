@@ -1,0 +1,112 @@
+/*******************************************************************************    
+ *
+ * Copyright(C) 2011-2014 ERC CISST, Johns Hopkins University.
+ *
+ * This is the reception module for ksz8851-16mll for the Ethernet-FPGA1394-QLA motor controller interface.
+ * Multiple frame reception is not enabled.
+ *
+ * Revision history
+ *     08/14/14    Long Qian
+ */
+
+
+`timescale 1ns / 1ps
+
+// --------------------------------------------------------------------------
+// 1-bit MUX
+// --------------------------------------------------------------------------
+module MUX1 (
+	input wire0,
+	input wire1,
+	input wire2,
+	input wire3,
+	input[1:0] ctl,
+	output out
+	);
+	localparam [1:0] Init = 2'b00,
+					 Transmit = 2'b01,
+					 Receive = 2'b10,
+					 Idle = 2'b11;
+
+	assign out = (ctl == Init)? wire0
+				:(ctl == Transmit)? wire1
+				:(ctl == Receive)? wire2
+				:wire3;
+endmodule
+
+
+// --------------------------------------------------------------------------
+// 8-bit MUX
+// --------------------------------------------------------------------------
+module MUX8 (
+	input[7:0] wire0,
+	input[7:0] wire1,
+	input[7:0] wire2,
+	input[7:0] wire3,
+	input[1:0] ctl,
+	output[7:0] out
+	);
+	localparam [1:0] Init = 2'b00,
+					 Transmit = 2'b01,
+					 Receive = 2'b10,
+					 Idle = 2'b11;
+
+	assign out[0] = (ctl == Init)? wire0[0]
+				:(ctl == Transmit)? wire1[0]
+				:(ctl == Receive)? wire2[0]
+				:wire3[0];
+	assign out[1] = (ctl == Init)? wire0[1]
+				:(ctl == Transmit)? wire1[1]
+				:(ctl == Receive)? wire2[1]
+				:wire3[1];
+	assign out[2] = (ctl == Init)? wire0[2]
+				:(ctl == Transmit)? wire1[2]
+				:(ctl == Receive)? wire2[2]
+				:wire3[2];
+	assign out[3] = (ctl == Init)? wire0[3]
+				:(ctl == Transmit)? wire1[3]
+				:(ctl == Receive)? wire2[3]
+				:wire3[3];
+	assign out[4] = (ctl == Init)? wire0[4]
+				:(ctl == Transmit)? wire1[4]
+				:(ctl == Receive)? wire2[4]
+				:wire3[4];
+	assign out[5] = (ctl == Init)? wire0[5]
+				:(ctl == Transmit)? wire1[5]
+				:(ctl == Receive)? wire2[5]
+				:wire3[5];
+	assign out[6] = (ctl == Init)? wire0[6]
+				:(ctl == Transmit)? wire1[6]
+				:(ctl == Receive)? wire2[6]
+				:wire3[6];
+	assign out[7] = (ctl == Init)? wire0[7]
+				:(ctl == Transmit)? wire1[7]
+				:(ctl == Receive)? wire2[7]
+				:wire3[7];
+endmodule
+
+
+// --------------------------------------------------------------------------
+// 16-bit MUX, realized by 2 8-bit MUX
+// --------------------------------------------------------------------------
+module MUX16 (
+	input[15:0] wire0,
+	input[15:0] wire1,
+	input[15:0] wire2,
+	input[15:0] wire3,
+	input[1:0] ctl,
+	output[15:0] out
+	);
+	MUX8 M1(.wire0(wire0[7:0]),
+			.wire1(wire1[7:0]),
+			.wire2(wire2[7:0]),
+			.wire3(wire3[7:0]),
+			.ctl(ctl),
+			.out(out[7:0]));
+	MUX8 M2(.wire0(wire0[15:8]),
+			.wire1(wire1[15:8]),
+			.wire2(wire2[15:8]),
+			.wire3(wire3[15:8]),
+			.ctl(ctl),
+			.out(out[15:8]));
+endmodule

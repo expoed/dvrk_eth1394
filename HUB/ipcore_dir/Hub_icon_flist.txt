@@ -1,0 +1,12 @@
+# Output products list for <Hub_icon>
+Hub_icon.asy
+Hub_icon.ejp
+Hub_icon.gise
+Hub_icon.ngc
+Hub_icon.v
+Hub_icon.veo
+Hub_icon.xco
+Hub_icon.xise
+Hub_icon_flist.txt
+Hub_icon_readme.txt
+Hub_icon_xmdf.tcl
