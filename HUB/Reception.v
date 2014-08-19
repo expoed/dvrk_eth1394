@@ -5,6 +5,14 @@
  * This is the reception module for ksz8851-16mll for the Ethernet-FPGA1394-QLA motor controller interface.
  * Multiple frame reception is not enabled.
  *
+ *	Protocol of received Ethernet Packet from PC:
+ *	- Destination Addr	:	6 bytes - "PC>HUB"
+ *	- Source Addr		:	4 bytes	- "LCSR"
+ *					 		2 bytes	- num_nodes + SPECIAL_SIGN + Firewire Frame Length
+ *			num_nodes	:	4 bits, from 0~14 ( 1 node to 15 nodes )
+ *		SPECIAL_SIGN	:	1 bit, indicating whether this frame is num_node synchronizing frame or normal frame
+ *			  FW_LEN	:	11 bits, records the length of the firewire frame in the Ethernet packet
+ *
  * Revision history
  *     08/14/14    Long Qian
  */
@@ -31,8 +39,10 @@ module Reception(
 	output reg[31:0] mem_wdata,
 	
 	output reg PC_REQ_NEW,			// trigger: new PC_REQ
+	output reg Node_Set,			// trigger: num_node set
 	output reg[10:0] PC_REQ_LEN,	// length in byte
-	input[5:0] StatusManager
+	input[5:0] StatusManager,
+	output reg[3:0] num_node
     );
 
 	// lower-level state machine, see regIO.v
@@ -68,8 +78,10 @@ module Reception(
 			frameReadCount <= 0;
 			PC_REQ_Correct <= 1;	// default: correct
 			PC_REQ_NEW <= 0;
+			Node_Set <= 0;
 			PC_REQ_LEN <= 0;
 			dataPart1 <= 0;
+			num_node <= 0;
 		end
 		else begin
 			if(receiveStatus == 2'b00) begin
@@ -334,6 +346,8 @@ module Reception(
 				end
 //========================= step 20: Read the frame
 				else if(step == 20) begin
+					if(Node_Set)
+						Node_Set <= 0;
 					if(state == Read0) begin
 						if(lengthInWord > 0) begin
 							lengthInWord <= lengthInWord - 1;
@@ -358,6 +372,11 @@ module Reception(
 							end
 							else if(frameReadCount == 6) begin // read the legnth of the FW frame
 								PC_REQ_LEN <= bSwapReadData[10:0];
+								if(bSwapReadData[11] == 1'b1) begin // It is a SPECIAL_SIGN
+									num_node <= bSwapReadData[15:12]+1'b1;
+									PC_REQ_Correct <= 1'b0;
+									Node_Set <= 1;
+								end
 							end
 							else if(frameReadCount == 7) begin // ethernet type: no use, prepare for RAM write
 								mem_wen <= PC_REQ_Correct;
@@ -449,7 +468,7 @@ module Reception(
 //========================= step 25: Exit
 				else if(step == 25) begin
 					if(state == Wait) begin
-						if(PC_REQ_Correct & ~PC_REQ_NEW) begin
+						if(PC_REQ_Correct & ~PC_REQ_NEW) begin // exclude num_node setting process
 							PC_REQ_NEW <= 1; // send a trigger to StatusManager
 						end
 						else begin
@@ -460,7 +479,7 @@ module Reception(
 				end
 			end
 			else if(receiveStatus == 2'b10) begin
-				if(StatusManager[5:3] == 3'b110) begin
+				if(StatusManager[4:3] == 2'b10) begin // include PC_REQ_RECV process and num_node setting process
 					receiveStatus <= 2'b00;
 				end
 			end

@@ -23,15 +23,15 @@ module Initialization(
 	output reg NewCommand,
 	input[3:0] state,
 	// trigger
-	output reg Init_Done
+	output reg ETH_Init_Done
 	);
 	
 	reg warmDone;			// record if warmimg-up is done or not
 	reg[20:0] warmCount;	// 0.0524s is needed to warm up
 	reg[4:0] step;			// steps needed to warm up
-	wire negInit_Done;
-	// very important! to avoid error of top module MUX caused by intermediate ~Init_Done	
-	assign negInit_Done = ~Init_Done;
+	wire negETH_Init_Done;
+	// very important! to avoid error of top module MUX caused by intermediate ~ETH_Init_Done	
+	assign negETH_Init_Done = ~ETH_Init_Done;
 	
 	// state machine of lower level register operation
 	localparam [3:0] Addr0  = 4'b0000,
@@ -51,7 +51,7 @@ module Initialization(
 			warmCount <= 0;
 			warmDone <= 0;
 			step <= 0;			// start from step 0
-			Init_Done <= 0;		// clear the trigger
+			ETH_Init_Done <= 0;		// clear the trigger
 			writeData <= 16'bz;	// set writeData to be high-impedance
 			NewCommand <= 0;
 		end
@@ -61,7 +61,7 @@ module Initialization(
 				warmDone <= 1;
 			end
 		end
-		else if(warmDone && negInit_Done) begin
+		else if(warmDone && negETH_Init_Done) begin
 //========================= step 0: read device chip ID 
 			if(step == 0) begin
 				if(state == Wait) begin
@@ -386,7 +386,7 @@ module Initialization(
 //******************************************************
 			else if(step == 24) begin
 				if(state == Read2 || state == Write2) begin
-					Init_Done <= 1;		// step up the trigger
+					ETH_Init_Done <= 1;		// step up the trigger
 				end
 			end
 		end		
@@ -401,7 +401,7 @@ module Initialization(
 //		.CONTROL(ctrl),
 //		.CLK(sysclk),
 //		.TRIG0(warmDone),//1
-//		.TRIG1(Init_Done),//1
+//		.TRIG1(ETH_Init_Done),//1
 //		.TRIG2(WR),//1
 //		.TRIG3(NewCommand),//1
 //		.TRIG4(state),//4

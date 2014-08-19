@@ -13,7 +13,7 @@
 `timescale 1ns / 1ps
 `include "Constants.v"
 
-module Transmission(
+module Transmission_Normal(
 	// global clock and reset
 	input sysclk,
 	input reset,
@@ -302,7 +302,7 @@ module Transmission(
 				end
 			end
 			else if(transmitStatus == 2'b10) begin
-				if(StatusManager[5:3] == 3'b1x1) begin
+				if(StatusManager[3] == 1'b1) begin
 					transmitStatus <= 2'b00;	// to start a transmission task again
 				end
 			end

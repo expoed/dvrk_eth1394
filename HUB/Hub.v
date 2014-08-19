@@ -52,8 +52,10 @@ module Hub
 	wire[10:0] RESP_DATA_LEN;
 
 	
-	// number of nodes in the network
-	reg[3:0] num_node;
+	// number of nodes in the network, input from PC SPECIAL frame
+	// ranging from 0~14, 1 node to 15 nodes
+	wire[3:0] num_node;
+	// record the number of Broadcast response received by the HUB
 	reg[3:0] BC_Packet_Count;
 	
 	
@@ -63,9 +65,10 @@ module Hub
 // --------------------------------------------------------------------------
 
 	
-	// pulses ( 1 -> 0 ->1 ) indicating the end of different processes
+	// pulses ( 1 -> 0 -> 1 ) indicating the end of different processes
 	// BC stands for broadcast
-	wire Init_Done;			// init finished
+	wire ETH_Init_Done;			// init finished
+	wire Node_Set;			// number of nodes set
 	wire PC_REQ_NEW;		// New PC request received from ETH
 	wire PC_REQ_TXed;		// PC request transmitted through FW
 	wire BC_REQ_TXed;		// BC request transmitted through FW
@@ -94,122 +97,199 @@ module Hub
 	//			3'b110: Nodes -> Hub(Reception)   : PC Request Response
 	//			3'b111: Nodes -> Hub(Reception)   : Broadcast Response	
 	reg[5:0] StatusManager;
+	reg[11:0] timeout_count;	// set timeout to be 4096 cycle = 81.92 ms
 	
 	
 	// The hub has two operating mode:
 	//		0: PC commnad mode		LED light
 	//		1: BC mode		  		LED dark
-	reg HubMode = 1;		
+	reg HubMode = 0;		
 	assign LED = HubMode;
 	
 	
 	always @(posedge sysclk or negedge RSTN) begin
 		if(!RSTN) begin
 			StatusManager <= 6'b0;// start initializing
-			num_node <= 4;
 			BC_Packet_Count <= 0;
-			HubMode <= 1;
+			HubMode <= ~HubMode;
+			timeout_count <= 0;
 		end
 		else begin
 		//-------------------------------------------------------------
+		//---------------------- Initialization -----------------------
+			if(StatusManager == 6'b0) begin //initializing
+				if(ETH_Init_Done) begin
+					StatusManager <= 6'b010000;
+				end
+			end
+			else if(StatusManager == 6'b010000) begin //read PC REQ or get num_node
+				if(PC_REQ_NEW) begin
+					StatusManager <= 6'b000001;
+				end
+				if(Node_Set) begin
+					StatusManager <= HubMode ? 6'b100011:6'b110000;
+				end
+			end
+			else if(StatusManager == 6'b000001) begin//TX REQ through Firewire
+				if(PC_REQ_TXed) begin
+					StatusManager <= 6'b000100;
+					timeout_count <= 0;
+				end
+			end
+			else if(StatusManager == 6'b000100) begin//waiting for ACK
+				if(ACK_RXed) begin
+					if(ACK_RESP == `ACK_DONE) begin// it is a write cmd
+						StatusManager <= 6'b010000;
+						timeout_count <= 0;
+					end
+					else if(ACK_RESP == `ACK_PEND) begin// it is a read cmd and wait for respond
+						StatusManager <= 6'b000110;
+						timeout_count <= 0;
+					end
+					else begin							// some error occurred
+						StatusManager <= 6'b010000;
+						timeout_count <= 0;
+					end
+				end
+				else if(timeout_count == 12'hFFF) begin
+					StatusManager <= 6'b010000;
+					timeout_count <= 0;
+				end
+				else
+					timeout_count <= timeout_count + 1;					
+			end
+			else if(StatusManager == 6'b000110) begin//waiting for response
+				if(RESP_RXed) begin
+					StatusManager <= 6'b011000;
+					timeout_count <= 0;
+				end
+				else if(timeout_count == 12'hFFF) begin
+					StatusManager <= 6'b010000;
+					timeout_count <= 0;
+				end
+				else
+					timeout_count <= timeout_count + 1;
+			end
+			else if(StatusManager == 6'b011000) begin// TX response back to PC
+				if(Trans_Done) begin
+					StatusManager <= 6'b010000;
+				end
+			end
+		//------------------- End of Initialization -------------------
+		//-------------------------------------------------------------
 		//---------------------- PC Command Mode ----------------------
 		// 1. Init
-		// 2. Read PC request from Ethernet
-		// 3. Transmit PC request through firewire
-		// 4. Read ACK
-		// 5. (ACK == PEND) Wait for data / ACK == Done, goto step 2
-		// 6. Transmit data back to PC, goto step 2
+		// 2. Synchronize num_node
+		// 3. Read PC request from Ethernet
+		// 4. Transmit PC request through firewire
+		// 5. Read ACK
+		// 6. (ACK == PEND) Wait for data / ACK == Done, goto step 2
+		// 7. Transmit data back to PC, goto step 2
 		//-------------------------------------------------------------
-			if(!HubMode) begin
-				if(StatusManager == 6'b0) begin //initializing
-					if(Init_Done) begin
-						StatusManager <= 6'b110000;
-					end
-				end
-				else if(StatusManager == 6'b110000) begin//read PC REQ
-					if(PC_REQ_NEW) begin
-						StatusManager <= 6'b100001;
-					end
-				end
-				else if(StatusManager == 6'b100001) begin//TX REQ through Firewire
-					if(PC_REQ_TXed) begin
-						StatusManager <= 6'b100100;
-					end
-				end
-				else if(StatusManager == 6'b100100) begin//waiting for ACK
-					if(ACK_RXed) begin
-						if(ACK_RESP == `ACK_DONE)// it is a write cmd
-							StatusManager <= 6'b110000;
-						else if(ACK_RESP == `ACK_PEND)// it is a read cmd and wait for respond
-							StatusManager <= 6'b100110;
-						else							// some error occurred
-							StatusManager <= 6'b110000;
-					end
-				end
-				else if(StatusManager == 6'b100110) begin//waiting for response
-					if(RESP_RXed) begin
-						StatusManager <= 6'b111000;
-					end
-				end
-				else if(StatusManager == 6'b111000) begin// TX response back to PC
-					if(Trans_Done) begin
-						StatusManager <= 6'b110000;
-					end
-				end
-			end
-		//---------------------- End of PC Command Mode ----------------------
-		//-------------------------- Broadcast Mode --------------------------
-		// 1. Init
-		// 2. Transmit BC request
-		// 3. Wait for ACK sent by node0
-		// 4. Read data from each node (num_node)
-		// 5. Send whole packet to PC, goto step 2
-		//--------------------------------------------------------------------
 			else begin
-				if(StatusManager == 6'b0) begin
-					if(Init_Done) begin
-						StatusManager <= 6'b100011;
-					end
-				end
-				else if(StatusManager == 6'b100011) begin
-					if(BC_REQ_TXed) begin
-						StatusManager <= 6'b100101;
-					end
-				end
-				else if(StatusManager == 6'b100101) begin
-					if(ACK_RXed) begin
-						if(ACK_RESP == `ACK_DONE) begin// BC respond will follow
-							StatusManager <= 6'b101111; // 101111: fast mode, 100111: normal mode
-							BC_Packet_Count <= 0;//reset the counter
+				if(!HubMode) begin
+					if(StatusManager == 6'b110000) begin //read PC REQ or get num_node
+						if(PC_REQ_NEW) begin
+							StatusManager <= 6'b100001;
 						end
-						else							// some error occurred
-							StatusManager <= 6'b100000;					
 					end
-				end
-				// --- normal mode ---
-				else if(StatusManager == 6'b100111) begin
-					if(BC_RESP_RXed) begin
-						if(BC_Packet_Count == num_node - 1) begin
-							BC_Packet_Count <= 0;
-							StatusManager <= 6'b101000;
+					else if(StatusManager == 6'b100001) begin//TX REQ through Firewire
+						if(PC_REQ_TXed) begin
+							StatusManager <= 6'b100100;
+							timeout_count <= 0;
+						end
+					end
+					else if(StatusManager == 6'b100100) begin//waiting for ACK
+						if(ACK_RXed) begin
+							if(ACK_RESP == `ACK_DONE) begin// it is a write cmd
+								StatusManager <= 6'b110000;
+								timeout_count <= 0;
+							end
+							else if(ACK_RESP == `ACK_PEND) begin// it is a read cmd and wait for respond
+								StatusManager <= 6'b100110;
+								timeout_count <= 0;
+							end
+							else begin							// some error occurred
+								StatusManager <= 6'b110000;
+								timeout_count <= 0;
+							end
+						end
+						else if(timeout_count == 12'hFFF) begin
+							StatusManager <= 6'b110000;
+							timeout_count <= 0;
 						end
 						else
-							BC_Packet_Count <= BC_Packet_Count + 1;
+							timeout_count <= timeout_count + 1;					
+					end
+					else if(StatusManager == 6'b100110) begin//waiting for response
+						if(RESP_RXed) begin
+							StatusManager <= 6'b111000;
+							timeout_count <= 0;
+						end
+						else if(timeout_count == 12'hFFF) begin
+							StatusManager <= 6'b110000;
+							timeout_count <= 0;
+						end
+						else
+							timeout_count <= timeout_count + 1;
+					end
+					else if(StatusManager == 6'b111000) begin// TX response back to PC
+						if(Trans_Done) begin
+							StatusManager <= 6'b110000;
+						end
 					end
 				end
-				else if(StatusManager == 6'b101000) begin
-					if(Trans_Done) begin
-						StatusManager <= 6'b100011;
+		//---------------------- End of PC Command Mode ----------------------
+		//--------------------------------------------------------------------
+		//-------------------------- Broadcast Mode --------------------------
+		// 1. Init
+		// 2. Synchronize num_node
+		// 3. Transmit BC request
+		// 4. Wait for ACK sent by node0
+		// 5. Read data from each node (num_node)
+		// 6. Send whole packet to PC, goto step 2
+		//--------------------------------------------------------------------
+				else begin
+					if(StatusManager == 6'b100011) begin // send BC_REQ from HUB to nodes
+						if(BC_REQ_TXed) begin
+							StatusManager <= 6'b100101;
+						end
+					end
+					else if(StatusManager == 6'b100101) begin
+						if(ACK_RXed) begin
+							if(ACK_RESP == `ACK_DONE) begin// BC respond will follow
+								StatusManager <= 6'b100111; // 101111: fast mode, 100111: normal mode
+								BC_Packet_Count <= 0;//reset the counter
+							end
+							else							// some error occurred
+								StatusManager <= 6'b100000;					
+						end
+					end
+					// --- normal mode ---
+					else if(StatusManager == 6'b100111) begin
+						if(BC_RESP_RXed) begin
+							if(BC_Packet_Count == num_node-1'b1) begin
+								BC_Packet_Count <= 0;
+								StatusManager <= 6'b101000;
+							end
+							else
+								BC_Packet_Count <= BC_Packet_Count + 1;
+						end
+					end
+					else if(StatusManager == 6'b101000) begin
+						if(Trans_Done) begin
+							StatusManager <= 6'b100011;
+						end
+					end
+					// --- fast mode ---
+					else if(StatusManager == 6'b101111) begin
+						if(Trans_Done) begin
+							StatusManager <= 6'b100011;
+						end
 					end
 				end
-				// --- fast mode ---
-				else if(StatusManager == 6'b101111) begin
-					if(Trans_Done) begin
-						StatusManager <= 6'b100011;
-					end
-				end
-			end
 		//---------------------- End of Broadcast Mode ----------------------
+			end
 		end
 	end
 
@@ -334,7 +414,7 @@ module Hub
 		.readData(readData),
 		.NewCommand(initNewCommand),
 		.state(stateReg),			// in: state of ksz8851 registers
-		.Init_Done(Init_Done)		// out: trigger for initialization completion
+		.ETH_Init_Done(ETH_Init_Done)		// out: trigger for initialization completion
 	);
 
 // --------------------------------------------------------------------------
@@ -351,32 +431,9 @@ module Hub
 	// 2'b01: operating
 	// 2'b10: finished
 	wire[1:0] transmitStatus;
-
-//	Transmission Trans(
-//		.sysclk(sysclk),
-//		.reset(RSTN),
-//		// register access parameters
-//		.offset(transoffset),
-//		.length(translength),
-//		.WR(transWR),
-//		.writeData(transwriteData),
-//		.readData(readData),
-//		.NewCommand(transNewCommand),
-//		.Dummy_Write(Dummy_Write),
-//		.state(stateReg),
-//		.transmitStatus(transmitStatus),
-//		// Hub RAM
-//		.mem_addr(trans_addrb),
-//		.mem_rdata(doutb),
-//		
-//		.Trans_Done(Trans_Done),		// out: trigger for completion
-//		.RESP_DATA_LEN(RESP_DATA_LEN),	// in: length of response (needed to be transmitted to PC)
-//		.StatusManager(StatusManager),	// in: current procedual status
-//		.num_node(num_node)				// in: number of nodes
-//	);
 	
-	// parallel acceleration
-	Transmission_Parallel Trans(
+
+	Transmission_Normal TransN(
 		.sysclk(sysclk),
 		.reset(RSTN),
 		// register access parameters
@@ -396,11 +453,35 @@ module Hub
 		.Trans_Done(Trans_Done),		// out: trigger for completion
 		.RESP_DATA_LEN(RESP_DATA_LEN),	// in: length of response (needed to be transmitted to PC)
 		.StatusManager(StatusManager),	// in: current procedual status
-		.num_node(num_node),			// in: number of nodes
-		
-		// for acceleration
-		.BC_RESP_RXed(BC_RESP_RXed)
+		.num_node(num_node)				// in: number of nodes
 	);
+	
+	// parallel acceleration
+//	Transmission_Parallel TransP(
+//		.sysclk(sysclk),
+//		.reset(RSTN),
+//		// register access parameters
+//		.offset(transoffset_parallel),
+//		.length(translength_parallel),
+//		.WR(transWR_parallel),
+//		.writeData(transwriteData_parallel),
+//		.readData(readData),
+//		.NewCommand(transNewCommand_parallel),
+//		.Dummy_Write(Dummy_Write_parallel),
+//		.state(stateReg),
+//		.transmitStatus(transmitStatus_parallel),
+//		// Hub RAM
+//		.mem_addr(trans_addrb_parallel),
+//		.mem_rdata(doutb),
+//		
+//		.Trans_Done(Trans_Done_parallel),// out: trigger for completion
+//		.RESP_DATA_LEN(RESP_DATA_LEN),	// in: length of response (needed to be transmitted to PC)
+//		.StatusManager(StatusManager),	// in: current procedual status
+//		.num_node(num_node),			// in: number of nodes
+//		
+//		// for acceleration
+//		.BC_RESP_RXed(BC_RESP_RXed)
+//	);
 	
 	
 // --------------------------------------------------------------------------
@@ -437,8 +518,10 @@ module Hub
 		.mem_wdata(dinb),
 		
 		.PC_REQ_NEW(PC_REQ_NEW),		// out: trigger: new PC request
+		.Node_Set(Node_Set),			// out: trigger: num_node set
 		.PC_REQ_LEN(PC_REQ_LEN),		// out: length of the request
-		.StatusManager(StatusManager)	// in: current procedual status
+		.StatusManager(StatusManager),	// in: current procedual status
+		.num_node(num_node)
 	);
 
 // --------------------------------------------------------------------------
@@ -521,30 +604,30 @@ module Hub
 // --------------------------------------------------------------------------
 // Chipscope module, for debugging
 // --------------------------------------------------------------------------
-//	wire[35:0] ctrl;
-//	Hub_icon ICON(
-//		.CONTROL0(ctrl)
-//	);
-//	HUB_ila ILA(
-//		.CONTROL(ctrl),
-//		.CLK(sysclk),
-//		.TRIG0(Init_Done),		//1
-//		.TRIG1(PC_REQ_NEW),		//1
-//		.TRIG2(PC_REQ_TXed),	//1
-//		.TRIG3(ACK_RXed),		//1
-//		.TRIG4(EthernetRegMaster),//4
-//		.TRIG5(ACK_RESP),		//4
-//		.TRIG6({receiveStatus,transmitStatus}),//4
-//		.TRIG7(stateReg),		//4
-//		.TRIG8(StatusManager),	//8
-//		.TRIG9(0),				//8
-//		.TRIG10(PC_REQ_LEN),	//8
-//		.TRIG11(RESP_DATA_LEN),	//8
-//		.TRIG12(addra),			//16
-//		.TRIG13(addrb),			//16
-//		.TRIG14(dinb),			//32
-//		.TRIG15(doutb)			//32
-//	);
+	wire[35:0] ctrl;
+	Hub_icon ICON(
+		.CONTROL0(ctrl)
+	);
+	HUB_ila ILA(
+		.CONTROL(ctrl),
+		.CLK(sysclk),
+		.TRIG0(ETH_Init_Done),		//1
+		.TRIG1(PC_REQ_NEW),		//1
+		.TRIG2(Node_Set),	//1
+		.TRIG3(ACK_RXed),		//1
+		.TRIG4(EthernetRegMaster),//4
+		.TRIG5(ACK_RESP),		//4
+		.TRIG6({receiveStatus,transmitStatus}),//4
+		.TRIG7(stateReg),		//4
+		.TRIG8(StatusManager),	//8
+		.TRIG9(num_node),		//8
+		.TRIG10(PC_REQ_LEN),	//8
+		.TRIG11(RESP_DATA_LEN),	//8
+		.TRIG12(addra),			//16
+		.TRIG13(addrb),			//16
+		.TRIG14(dinb),			//32
+		.TRIG15(doutb)			//32
+	);
 	
 endmodule
 
@@ -561,5 +644,5 @@ module EthRegMaster(
 					 Receive = 2'b10,
 					 Idle = 2'b11;
 
-	assign EthernetRegMaster = StatusManager[5] ? (StatusManager[3] ? Transmit : (StatusManager[4] ? Receive : Idle)) : Init;
+	assign EthernetRegMaster = (StatusManager == 6'b0) ? Init : (StatusManager[3] ? Transmit : (StatusManager[4] ? Receive : Idle));
 endmodule
