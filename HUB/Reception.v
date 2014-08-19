@@ -372,7 +372,7 @@ module Reception(
 							end
 							else if(frameReadCount == 6) begin // read the legnth of the FW frame
 								PC_REQ_LEN <= bSwapReadData[10:0];
-								if(bSwapReadData[11] == 1'b1) begin // It is a SPECIAL_SIGN
+								if(PC_REQ_Correct & bSwapReadData[11]) begin // It is a SPECIAL_SIGN
 									num_node <= bSwapReadData[15:12]+1'b1;
 									PC_REQ_Correct <= 1'b0;
 									Node_Set <= 1;
