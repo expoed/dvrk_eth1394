@@ -144,7 +144,9 @@ module PhyLinkInterface(
 	output reg ACK_RXed,		 // trigger: ACK received (BC and PC)
 	output reg RESP_RXed,		 // trigger: response of PC request received
 	output reg BC_RESP_RXed,	 // trigger: response of BC request received
-	output reg[3:0] ACK_RESP
+	output reg[3:0] ACK_RESP,	 // the type of ACK received
+	
+	input wire[3:0] BC_Packet_Count	// the number of BC packets received by HUB
 );
 
 
@@ -468,7 +470,7 @@ begin
 					// second quadlet --------------------------------------
                     else if(count == 64) begin
 						if(BC_Receive) begin
-							reg_addr <= reg_addr + buffer[19:16]*`SZ_BC_RECEIVE - 1;//Correspond to the target area for BC receive data
+							reg_addr <= reg_addr + BC_Packet_Count*`SZ_BC_RECEIVE - 1;//Correspond to the target area for BC receive data
 						end
 						else begin//Command from PC
 							reg_addr <= reg_addr + 1;

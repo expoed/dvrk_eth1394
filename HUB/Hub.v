@@ -352,6 +352,7 @@ module Hub
 		.ACK_RESP(ACK_RESP),			// out: type of ACK
 		.RESP_RXed(RESP_RXed),			// out: trigger for response received
 		.BC_RESP_RXed(BC_RESP_RXed),	// out: trigger for each BC response received
+		.BC_Packet_Count(BC_Packet_Count),// in: the number of BC packets received
 		
 		.StatusManager(StatusManager)	// in:  current procedual status
 	);
