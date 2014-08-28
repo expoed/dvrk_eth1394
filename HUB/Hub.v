@@ -68,8 +68,8 @@ module Hub
 	// pulses ( 1 -> 0 -> 1 ) indicating the end of different processes
 	// BC stands for broadcast
 	wire ETH_Init_Done;			// init finished
-	wire Node_Set;			// number of nodes set
 	wire PC_REQ_NEW;		// New PC request received from ETH
+	wire[1:0] PC_REQ_TYPE;	// type of PC_REQ, definition see Reception.v
 	wire PC_REQ_TXed;		// PC request transmitted through FW
 	wire BC_REQ_TXed;		// BC request transmitted through FW
 	wire ACK_RXed;			// Acknowledgement received from FW ( BC & PC )
@@ -97,82 +97,42 @@ module Hub
 	//			3'b110: Nodes -> Hub(Reception)   : PC Request Response
 	//			3'b111: Nodes -> Hub(Reception)   : Broadcast Response	
 	reg[5:0] StatusManager;
+	parameter [5:0] STATUS_UNINIT 		= 6'b000000,
+					STATUS_ETH_RECV 	= 6'b110000,
+					STATUS_ETH_TRANS_PC = 6'b111000,
+					STATUS_ETH_TRANS_BC = 6'b101000,
+					STATUS_FW_TRANS_PC	= 6'b100001,
+					STATUS_FW_TRANS_BC	= 6'b100011,
+					STATUS_FW_ACK_PC	= 6'b100100,
+					STATUS_FW_ACK_BC	= 6'b100101,
+					STATUS_FW_RECV_PC	= 6'b100110,
+					STATUS_FW_RECV_BC	= 6'b100111;
+					
+					
 	reg[11:0] timeout_count;	// set timeout to be 4096 cycle = 81.92 ms
 	
 	
 	// The hub has two operating mode:
-	//		0: PC commnad mode		LED light
-	//		1: BC mode		  		LED dark
+	//		0: PC commnad mode		LED dark
+	//		1: BC mode		  		LED light
 	reg HubMode = 0;		
 	assign LED = HubMode;
 	
 	
 	always @(posedge sysclk or negedge RSTN) begin
 		if(!RSTN) begin
-			StatusManager <= 6'b0;// start initializing
+			StatusManager <= STATUS_UNINIT;// start initializing
 			BC_Packet_Count <= 0;
-			HubMode <= ~HubMode;
+			//HubMode <= ~HubMode; // for PC & BC mode
+			HubMode <= 0;
 			timeout_count <= 0;
 		end
 		else begin
 		//-------------------------------------------------------------
 		//---------------------- Initialization -----------------------
-			if(StatusManager == 6'b0) begin //initializing
+			if(StatusManager == STATUS_UNINIT) begin
 				if(ETH_Init_Done) begin
-					StatusManager <= 6'b010000;
-				end
-			end
-			else if(StatusManager == 6'b010000) begin //read PC REQ or get num_node
-				if(PC_REQ_NEW) begin
-					StatusManager <= 6'b000001;
-				end
-				if(Node_Set) begin
-					StatusManager <= HubMode ? 6'b100011:6'b110000;
-				end
-			end
-			else if(StatusManager == 6'b000001) begin//TX REQ through Firewire
-				if(PC_REQ_TXed) begin
-					StatusManager <= 6'b000100;
-					timeout_count <= 0;
-				end
-			end
-			else if(StatusManager == 6'b000100) begin//waiting for ACK
-				if(ACK_RXed) begin
-					if(ACK_RESP == `ACK_DONE) begin// it is a write cmd
-						StatusManager <= 6'b010000;
-						timeout_count <= 0;
-					end
-					else if(ACK_RESP == `ACK_PEND) begin// it is a read cmd and wait for respond
-						StatusManager <= 6'b000110;
-						timeout_count <= 0;
-					end
-					else begin							// some error occurred
-						StatusManager <= 6'b010000;
-						timeout_count <= 0;
-					end
-				end
-				else if(timeout_count == 12'hFFF) begin
-					StatusManager <= 6'b010000;
-					timeout_count <= 0;
-				end
-				else
-					timeout_count <= timeout_count + 1;					
-			end
-			else if(StatusManager == 6'b000110) begin//waiting for response
-				if(RESP_RXed) begin
-					StatusManager <= 6'b011000;
-					timeout_count <= 0;
-				end
-				else if(timeout_count == 12'hFFF) begin
-					StatusManager <= 6'b010000;
-					timeout_count <= 0;
-				end
-				else
-					timeout_count <= timeout_count + 1;
-			end
-			else if(StatusManager == 6'b011000) begin// TX response back to PC
-				if(Trans_Done) begin
-					StatusManager <= 6'b010000;
+					StatusManager <= HubMode ? STATUS_FW_TRANS_BC : STATUS_ETH_RECV;
 				end
 			end
 		//------------------- End of Initialization -------------------
@@ -187,58 +147,233 @@ module Hub
 		// 7. Transmit data back to PC, goto step 2
 		//-------------------------------------------------------------
 			else begin
+				// PC Command mode
 				if(!HubMode) begin
-					if(StatusManager == 6'b110000) begin //read PC REQ or get num_node
-						if(PC_REQ_NEW) begin
-							StatusManager <= 6'b100001;
+					case(StatusManager)
+					
+					
+						// -----------------------------------
+						// receiving ethernet frame from PC
+						// 4 kinds of ethernet frame, correspond to PC_REQ_TYPE
+						// trugger: PC_REQ_NEW, valid for only one cycle
+						STATUS_ETH_RECV: 
+						begin
+							// trigger
+							if(PC_REQ_NEW) begin
+								case(PC_REQ_TYPE)								
+									// normal frame: quadlet/block read/write
+									// then, write the firewire frame to nodes
+									`FM_NORMAL:
+									begin
+										StatusManager <= STATUS_FW_TRANS_PC;
+									end									
+									// broadacst write frame
+									// then, write the firewire frame to nodes
+									`FM_Broadcast_Write:
+									begin
+										StatusManager <= STATUS_FW_TRANS_PC;
+									end
+									// broadcast read frame
+									// only block read
+									// then write the firewire
+									`FM_Broadcast_Read:
+									begin
+										StatusManager <= STATUS_FW_TRANS_BC;
+									end
+									// num_node synchronizing frame
+									// stay in the same loop, waiting for next PC_REQ
+									`FM_NUM_NODE:
+									begin
+										StatusManager <= STATUS_ETH_RECV;
+									end
+									// Default: never happen
+								endcase
+							end
 						end
-					end
-					else if(StatusManager == 6'b100001) begin//TX REQ through Firewire
-						if(PC_REQ_TXed) begin
-							StatusManager <= 6'b100100;
-							timeout_count <= 0;
+					
+					
+						// -----------------------------------
+						// tranmit the PC request through firewire to the nodes
+						// trigger: PC_REQ_TXed
+						// different action according to PC_REQ_TYPE
+						STATUS_FW_TRANS_PC:
+						begin
+							// trigger
+							if(PC_REQ_TXed) begin
+								case(PC_REQ_TYPE)
+									// normal frame
+									// waiting for ACK
+									`FM_NORMAL:
+									begin
+										StatusManager <= STATUS_FW_ACK_PC;
+									end									
+									// broadacst write frame
+									// no ACK response
+									// back to STATUS_ETH_RECV status
+									`FM_Broadcast_Write:
+									begin
+										StatusManager <= STATUS_ETH_RECV;
+									end
+									// broadcast read frame, num_node syn frame
+									// never happen here
+									default:
+									begin
+										StatusManager <= STATUS_ETH_RECV;
+									end
+								endcase
+							end							
+							timeout_count <= 0;	// reset the timer
 						end
-					end
-					else if(StatusManager == 6'b100100) begin//waiting for ACK
-						if(ACK_RXed) begin
-							if(ACK_RESP == `ACK_DONE) begin// it is a write cmd
-								StatusManager <= 6'b110000;
+						
+						
+						// ------------------------------------
+						// tranmit the BC request through firewire to the nodes
+						// trigger: PC_REQ_TXed
+						// different action according to PC_REQ_TYPE
+						STATUS_FW_TRANS_BC:
+						begin
+							// trigger
+							if(BC_REQ_TXed) begin
+								// correct case
+								if(PC_REQ_TYPE == `FM_Broadcast_Read) begin
+									StatusManager <= STATUS_FW_ACK_BC;
+								end
+								// some error occurred
+								else begin
+									StatusManager <= STATUS_ETH_RECV;
+								end
+							end							
+							timeout_count <= 0;	// reset the timer
+						end
+						
+						
+						// -----------------------------------
+						// wait for ACK response of PC command
+						// trigger: ACK_RXed, timeout
+						STATUS_FW_ACK_PC:
+						begin							
+							// trigger
+							if(ACK_RXed) begin
+								timeout_count <= 0;	// reset the timer
+								// respond only to normal frame
+								if(PC_REQ_TYPE == `FM_NORMAL) begin
+									// a quadlet/block read frame
+									if(ACK_RESP == `ACK_PEND) begin
+										StatusManager <= STATUS_FW_RECV_PC;
+									end
+									// a write frame (ACK_DONE) or some error (ACK_DATA) occurred
+									else begin
+										StatusManager <= STATUS_ETH_RECV;
+									end
+								end
+								// some error occurred
+								else begin
+									StatusManager <= STATUS_ETH_RECV;
+								end
+							end
+							// timeout
+							else if(timeout_count == 12'hFFF) begin
+								StatusManager <= STATUS_ETH_RECV;
 								timeout_count <= 0;
 							end
-							else if(ACK_RESP == `ACK_PEND) begin// it is a read cmd and wait for respond
-								StatusManager <= 6'b100110;
+							else
+								timeout_count <= timeout_count + 1;
+						end
+						
+						
+						// -----------------------------------
+						// wait for ACK response of BC read command
+						// trigger: ACK_RXed, timeout
+						STATUS_FW_ACK_BC:
+						begin
+							// trigger
+							if(ACK_RXed) begin
+								timeout_count <= 0;	// reset the timer
+								// respond only to Broadcast_Read frame
+								if(PC_REQ_TYPE == `FM_Broadcast_Read) begin
+									// the ACK should be ACK_DONE
+									if(ACK_RESP == `ACK_DONE) begin
+										StatusManager <= STATUS_FW_RECV_BC;
+									end
+									// some error occurred
+									else begin
+										StatusManager <= STATUS_ETH_RECV;
+									end
+								end
+								// some error occurred
+								else begin
+									StatusManager <= STATUS_ETH_RECV;
+								end
+							end	
+							// timeout
+							else if(timeout_count == 12'hFFF) begin
+								StatusManager <= STATUS_ETH_RECV;
 								timeout_count <= 0;
 							end
-							else begin							// some error occurred
-								StatusManager <= 6'b110000;
+							else
+								timeout_count <= timeout_count + 1;					
+						end
+						
+						
+						// -----------------------------------
+						// wait for response of PC REQ from nodes
+						// trigger: RESP_RXed, timeout
+						STATUS_FW_RECV_PC:
+						begin
+							// trigger
+							if(RESP_RXed) begin
+								StatusManager <= STATUS_ETH_TRANS_PC;
 								timeout_count <= 0;
 							end
+							// timeout
+							else if(timeout_count == 12'hFFF) begin
+								StatusManager <= STATUS_ETH_RECV;
+								timeout_count <= 0;
+							end
+							else
+								timeout_count <= timeout_count + 1;
 						end
-						else if(timeout_count == 12'hFFF) begin
-							StatusManager <= 6'b110000;
-							timeout_count <= 0;
+						
+						
+						// -----------------------------------
+						// wait for response of BC REQ from nodes
+						// trigger: BC_RESP_RXed
+						// !TODO: add timeout support here
+						STATUS_FW_RECV_BC:
+						begin
+							if(BC_RESP_RXed) begin
+								if(BC_Packet_Count == num_node-1'b1) begin
+									BC_Packet_Count <= 0;
+									StatusManager <= STATUS_ETH_TRANS_BC;
+								end
+								else
+									BC_Packet_Count <= BC_Packet_Count + 1;
+							end
+						end						
+						
+						
+						// -----------------------------------
+						// transmit PC_REQ response back to PC through Etherent
+						// trigger: Trans_Done
+						STATUS_ETH_TRANS_PC:
+						begin
+							if(Trans_Done) begin
+								StatusManager <= STATUS_ETH_RECV;
+							end
 						end
-						else
-							timeout_count <= timeout_count + 1;					
-					end
-					else if(StatusManager == 6'b100110) begin//waiting for response
-						if(RESP_RXed) begin
-							StatusManager <= 6'b111000;
-							timeout_count <= 0;
+						
+						
+						// -----------------------------------
+						// transmit BC_REQ response back to PC through Etherent
+						// trigger: Trans_Done
+						STATUS_ETH_TRANS_BC:
+						begin
+							if(Trans_Done) begin
+								StatusManager <= STATUS_ETH_RECV;
+							end
 						end
-						else if(timeout_count == 12'hFFF) begin
-							StatusManager <= 6'b110000;
-							timeout_count <= 0;
-						end
-						else
-							timeout_count <= timeout_count + 1;
-					end
-					else if(StatusManager == 6'b111000) begin// TX response back to PC
-						if(Trans_Done) begin
-							StatusManager <= 6'b110000;
-						end
-					end
-				end
+						
+					endcase
 		//---------------------- End of PC Command Mode ----------------------
 		//--------------------------------------------------------------------
 		//-------------------------- Broadcast Mode --------------------------
@@ -249,46 +384,47 @@ module Hub
 		// 5. Read data from each node (num_node)
 		// 6. Send whole packet to PC, goto step 2
 		//--------------------------------------------------------------------
-				else begin
-					if(StatusManager == 6'b100011) begin // send BC_REQ from HUB to nodes
-						if(BC_REQ_TXed) begin
-							StatusManager <= 6'b100101;
-						end
-					end
-					else if(StatusManager == 6'b100101) begin
-						if(ACK_RXed) begin
-							if(ACK_RESP == `ACK_DONE) begin// BC respond will follow
-								StatusManager <= 6'b100111; // 101111: fast mode, 100111: normal mode
-								BC_Packet_Count <= 0;//reset the counter
-							end
-							else							// some error occurred
-								StatusManager <= 6'b100000;					
-						end
-					end
-					// --- normal mode ---
-					else if(StatusManager == 6'b100111) begin
-						if(BC_RESP_RXed) begin
-							if(BC_Packet_Count == num_node-1'b1) begin
-								BC_Packet_Count <= 0;
-								StatusManager <= 6'b101000;
-							end
-							else
-								BC_Packet_Count <= BC_Packet_Count + 1;
-						end
-					end
-					else if(StatusManager == 6'b101000) begin
-						if(Trans_Done) begin
-							StatusManager <= 6'b100011;
-						end
-					end
-					// --- fast mode ---
-					else if(StatusManager == 6'b101111) begin
-						if(Trans_Done) begin
-							StatusManager <= 6'b100011;
-						end
-					end
-				end
+//				else begin
+//					if(StatusManager == 6'b100011) begin // send BC_REQ from HUB to nodes
+//						if(BC_REQ_TXed) begin
+//							StatusManager <= 6'b100101;
+//						end
+//					end
+//					else if(StatusManager == 6'b100101) begin
+//						if(ACK_RXed) begin
+//							if(ACK_RESP == `ACK_DONE) begin// BC respond will follow
+//								StatusManager <= 6'b100111; // 101111: fast mode, 100111: normal mode
+//								BC_Packet_Count <= 0;//reset the counter
+//							end
+//							else							// some error occurred
+//								StatusManager <= 6'b100000;					
+//						end
+//					end
+//					// --- normal mode ---
+//					else if(StatusManager == 6'b100111) begin
+//						if(BC_RESP_RXed) begin
+//							if(BC_Packet_Count == num_node-1'b1) begin
+//								BC_Packet_Count <= 0;
+//								StatusManager <= 6'b101000;
+//							end
+//							else
+//								BC_Packet_Count <= BC_Packet_Count + 1;
+//						end
+//					end
+//					else if(StatusManager == 6'b101000) begin
+//						if(Trans_Done) begin
+//							StatusManager <= 6'b100011;
+//						end
+//					end
+//					// --- fast mode ---
+//					else if(StatusManager == 6'b101111) begin
+//						if(Trans_Done) begin
+//							StatusManager <= 6'b100011;
+//						end
+//					end
+//				end
 		//---------------------- End of Broadcast Mode ----------------------
+				end
 			end
 		end
 	end
@@ -327,6 +463,10 @@ module Hub
 	wire lreq_trig;
     wire[2:0] lreq_type;
 	
+	// broadcast read parameters
+	wire[15:0] bc_sequence;
+	wire[15:0] bc_fpga;
+	
 	// phy-link interface
 	PhyLinkInterface phy(
 		.sysclk(sysclk),         		// in: global clk  
@@ -354,7 +494,9 @@ module Hub
 		.BC_RESP_RXed(BC_RESP_RXed),	// out: trigger for each BC response received
 		.BC_Packet_Count(BC_Packet_Count),// in: the number of BC packets received
 		
-		.StatusManager(StatusManager)	// in:  current procedual status
+		.StatusManager(StatusManager),	// in:  current procedual status
+		.bc_sequence(bc_sequence),		// in: sequence number of BC
+		.bc_fpga(bc_fpga)				// in: global board information
 	);
 
 
@@ -519,10 +661,12 @@ module Hub
 		.mem_wdata(dinb),
 		
 		.PC_REQ_NEW(PC_REQ_NEW),		// out: trigger: new PC request
-		.Node_Set(Node_Set),			// out: trigger: num_node set
+		.PC_REQ_TYPE(PC_REQ_TYPE),		// out: type of PC_REQ
 		.PC_REQ_LEN(PC_REQ_LEN),		// out: length of the request
 		.StatusManager(StatusManager),	// in: current procedual status
-		.num_node(num_node)
+		.num_node(num_node),
+		.bc_sequence(bc_sequence),
+		.bc_fpga(bc_fpga)
 	);
 
 // --------------------------------------------------------------------------
@@ -605,30 +749,30 @@ module Hub
 // --------------------------------------------------------------------------
 // Chipscope module, for debugging
 // --------------------------------------------------------------------------
-	wire[35:0] ctrl;
-	Hub_icon ICON(
-		.CONTROL0(ctrl)
-	);
-	HUB_ila ILA(
-		.CONTROL(ctrl),
-		.CLK(sysclk),
-		.TRIG0(ETH_Init_Done),		//1
-		.TRIG1(PC_REQ_NEW),		//1
-		.TRIG2(Node_Set),	//1
-		.TRIG3(ACK_RXed),		//1
-		.TRIG4(EthernetRegMaster),//4
-		.TRIG5(ACK_RESP),		//4
-		.TRIG6({receiveStatus,transmitStatus}),//4
-		.TRIG7(stateReg),		//4
-		.TRIG8(StatusManager),	//8
-		.TRIG9(num_node),		//8
-		.TRIG10(PC_REQ_LEN),	//8
-		.TRIG11(RESP_DATA_LEN),	//8
-		.TRIG12(addra),			//16
-		.TRIG13(addrb),			//16
-		.TRIG14(dinb),			//32
-		.TRIG15(doutb)			//32
-	);
+//	wire[35:0] ctrl;
+//	Hub_icon ICON(
+//		.CONTROL0(ctrl)
+//	);
+//	HUB_ila ILA(
+//		.CONTROL(ctrl),
+//		.CLK(sysclk),
+//		.TRIG0(ETH_Init_Done),		//1
+//		.TRIG1(PC_REQ_NEW),		//1
+//		.TRIG2(RESP_RXed),	//1
+//		.TRIG3(ACK_RXed),		//1
+//		.TRIG4({BC_RESP_RXed, PC_REQ_TXed, PC_REQ_TYPE}),//4
+//		.TRIG5(ACK_RESP),		//4
+//		.TRIG6({receiveStatus,transmitStatus}),//4
+//		.TRIG7(stateReg),		//4
+//		.TRIG8(StatusManager),	//8
+//		.TRIG9(num_node),		//8
+//		.TRIG10(PC_REQ_LEN),	//8
+//		.TRIG11(RESP_DATA_LEN),	//8
+//		.TRIG12(addra),			//16
+//		.TRIG13(addrb),			//16
+//		.TRIG14(dinb),			//32
+//		.TRIG15(doutb)			//32
+//	);
 	
 endmodule
 

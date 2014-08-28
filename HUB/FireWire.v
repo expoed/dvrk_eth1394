@@ -146,7 +146,9 @@ module PhyLinkInterface(
 	output reg BC_RESP_RXed,	 // trigger: response of BC request received
 	output reg[3:0] ACK_RESP,	 // the type of ACK received
 	
-	input wire[3:0] BC_Packet_Count	// the number of BC packets received by HUB
+	input wire[3:0] BC_Packet_Count,	// the number of BC packets received by HUB
+	input wire[15:0] bc_sequence,		// the sequence number of BC read, given by reception.v
+	input wire[15:0] bc_fpga			// indicate the existense of boards
 );
 
 
@@ -193,11 +195,7 @@ module PhyLinkInterface(
     reg crc_tx;                   // flag to inidicate if in a transmit state
 
     // link request trigger and type
-    reg crc_ini;                  // flag to reset the crc module
-
-    // broadcast related fields
-    reg[15:0] bc_sequence;     // broadcast sequence num
-    reg[15:0] bc_fpga;         // indicates whether a boards exists    
+    reg crc_ini;                  // flag to reset the crc module  
     
     // ----- hub -------
     
@@ -301,8 +299,6 @@ begin
 		ACK_RESP <= 0;
 		BC_REQ <= 0;
 		RESP_DATA_LEN <= 0;
-		bc_sequence <= 16'hFFFF;  // it will start from 0
-		bc_fpga <= 16'h000F;	  // Indicate FPGA0,1,2,3 exists
 		PC_REQ_TXed <= 0;		  // set default value 0 to all triggers
 		BC_REQ_TXed <= 0;
 		ACK_RXed <= 0;
@@ -331,7 +327,6 @@ begin
                         lreq_trig <= 1;
                         lreq_type <= `LREQ_TX_ISO;
 						BC_REQ <= 1;
-						bc_sequence <= bc_sequence + 1;
                     end
 					else if(StatusManager[2:0] == 3'b001 && !lreqSent) begin// TX PC request
 						lreqSent <= 1;

@@ -39,10 +39,17 @@ module Reception(
 	output reg[31:0] mem_wdata,
 	
 	output reg PC_REQ_NEW,			// trigger: new PC_REQ
-	output reg Node_Set,			// trigger: num_node set
+	// type of PC_REQ
+	// 00 - normal quadlet/block read/write frame
+	// 01 - broadcast quadlet/block write frame
+	// 10 - broadcast block read frame
+	// 11 - number of node synchronization frame
+	output reg[1:0] PC_REQ_TYPE,
 	output reg[10:0] PC_REQ_LEN,	// length in byte
 	input[5:0] StatusManager,
-	output reg[3:0] num_node
+	output reg[3:0] num_node,
+	output reg[15:0] bc_sequence,
+	output reg[15:0] bc_fpga
     );
 
 	// lower-level state machine, see regIO.v
@@ -67,6 +74,7 @@ module Reception(
 	reg[12:0] frameReadCount;	// count the number of word already read
 	reg PC_REQ_Correct;			// temporal variable to indicate the PC_REQ is correct or not, by examing header
 	reg[15:0] dataPart1;		// first 16-bit of 32-bit RAM data
+	reg[95:0] FWFrameBuffer;	// to check if it is a broadcast block read frame
 	
 	always @(posedge sysclk or negedge reset) begin
 		if(!reset) begin
@@ -78,16 +86,23 @@ module Reception(
 			frameReadCount <= 0;
 			PC_REQ_Correct <= 1;	// default: correct
 			PC_REQ_NEW <= 0;
-			Node_Set <= 0;
 			PC_REQ_LEN <= 0;
 			dataPart1 <= 0;
 			num_node <= 0;
+			PC_REQ_TYPE <= `FM_NORMAL;
+			FWFrameBuffer <= 0;
+			bc_sequence <= 0;
+			bc_fpga <= 0;
 		end
 		else begin
 			if(receiveStatus == 2'b00) begin
 				NewCommand <= 1;
 				receiveStatus <= 2'b01;	// start receiving
 				step <= 0;
+				PC_REQ_TYPE <= `FM_NORMAL;
+				FWFrameBuffer <= 0;
+				bc_sequence <= 0;
+				bc_fpga <= 0;
 			end
 			else if(receiveStatus == 2'b01) begin
 //========================= step 0: read ISR
@@ -346,8 +361,6 @@ module Reception(
 				end
 //========================= step 20: Read the frame
 				else if(step == 20) begin
-					if(Node_Set)
-						Node_Set <= 0;
 					if(state == Read0) begin
 						if(lengthInWord > 0) begin
 							lengthInWord <= lengthInWord - 1;
@@ -375,7 +388,7 @@ module Reception(
 								if(PC_REQ_Correct & bSwapReadData[11]) begin // It is a SPECIAL_SIGN
 									num_node <= bSwapReadData[15:12]+1'b1;
 									PC_REQ_Correct <= 1'b0;
-									Node_Set <= 1;
+									PC_REQ_TYPE <= `FM_NUM_NODE;
 								end
 							end
 							else if(frameReadCount == 7) begin // ethernet type: no use, prepare for RAM write
@@ -388,6 +401,10 @@ module Reception(
 							end
 							else if(frameReadCount == 9) begin
 								mem_wdata <= {dataPart1, bSwapReadData};
+								FWFrameBuffer[95:64] <= {dataPart1, bSwapReadData};
+								if(dataPart1 == 16'hFFFF) begin
+									PC_REQ_TYPE <= `FM_Broadcast_Write;
+								end
 							end
 							else begin
 								if(!frameReadCount[0]) begin
@@ -396,6 +413,19 @@ module Reception(
 								else begin
 									mem_addr <= mem_addr + 1;
 									mem_wdata <= {dataPart1, bSwapReadData};
+									if(mem_addr == `ADDR_PC_REQ) begin
+										FWFrameBuffer[63:32] <= {dataPart1, bSwapReadData};
+									end
+									else if(mem_addr == `ADDR_PC_REQ + 1) begin
+										FWFrameBuffer[31:0] <= {dataPart1, bSwapReadData};
+									end
+									else if(mem_addr == `ADDR_PC_REQ + 2) begin
+										if(FWFrameBuffer == 96'hFFC0_XXXX_XXXX_FFFF_FFFF_000F) begin
+											PC_REQ_TYPE <= `FM_Broadcast_Read;
+											bc_sequence <= dataPart1;
+											bc_fpga <= bSwapReadData;
+										end
+									end
 								end
 							end
 						end
@@ -487,29 +517,30 @@ module Reception(
 	end
 	
 //Chipscope
-//	wire[35:0] ctrl;
-//	Hub_icon ICON(
-//		.CONTROL0(ctrl)
-//	);
-//	HUB_ila ILA(
-//		.CONTROL(ctrl),
-//		.CLK(sysclk),
-//		.TRIG0(PC_REQ_Correct),//1
-//		.TRIG1(Dummy_Read),//1
-//		.TRIG2(WR),//1
-//		.TRIG3(NewCommand),//1
-//		.TRIG4(receiveStatus),//4
-//		.TRIG5(state),//4
-//		.TRIG6(mem_wen),//4
-//		.TRIG7(PC_REQ_NEW),//4
-//		.TRIG8(step),//8
-//		.TRIG9(PC_REQ_LEN[7:0]),//8
-//		.TRIG10(frameReadCount[7:0]),//8
-//		.TRIG11(lengthInWord[7:0]),//8
-//		.TRIG12(writeData),//16
-//		.TRIG13(readData),//16
-//		.TRIG14(mem_addr),//32
-//		.TRIG15(mem_wdata)//32
-//	);
+	wire[35:0] ctrl;
+	Hub_icon ICON(
+		.CONTROL0(ctrl)
+	);
+	HUB_ila ILA(
+		.CONTROL(ctrl),
+		.CLK(sysclk),
+		.TRIG0(PC_REQ_Correct),//1
+		.TRIG1(Dummy_Read),//1
+		.TRIG2(WR),//1
+		.TRIG3(NewCommand),//1
+		.TRIG4(receiveStatus),//4
+		.TRIG5(state),//4
+		.TRIG6(PC_REQ_TYPE),//4
+		.TRIG7(PC_REQ_NEW),//4
+		.TRIG8(step),//8
+		.TRIG9(PC_REQ_LEN[7:0]),//8
+		.TRIG10(frameReadCount[7:0]),//8
+		.TRIG11(lengthInWord[7:0]),//8
+		.TRIG12(writeData),//16
+		.TRIG13(readData),//16
+		.TRIG14(mem_addr),//32
+		//.TRIG15(mem_wdata)//32
+		.TRIG15({bc_sequence, bc_fpga})//32
+	);
 
 endmodule

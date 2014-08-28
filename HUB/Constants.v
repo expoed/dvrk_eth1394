@@ -112,6 +112,13 @@
 `define SZ_BBC  16'd736           // block write broadcast packet size
                                   // (4 + 1 + 1 + 16 + 1) * 32 = 736
 
+
+// PC>HUB Ethernet frame type
+`define FM_NORMAL			2'b00
+`define FM_Broadcast_Write	2'b01
+`define FM_Broadcast_Read	2'b10
+`define FM_NUM_NODE			2'b11
+
 // transaction and response codes
 `define TC_QWRITE 4'd0            // quadlet write
 `define TC_BWRITE 4'd1            // block write
