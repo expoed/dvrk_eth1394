@@ -183,21 +183,21 @@ module Transmission_Normal(
 					if(state == Write2) begin
 						// Destination MAC: "HUB>PC"
 						if(countDown == lengthInWord)
-							writeData <= 16'h5548;
+							writeData <= 16'h5548;//16'h5548;
 						else if(countDown == lengthInWord - 4'h1)
-							writeData <= 16'h3e42;
+							writeData <= 16'h3e42;//16'h3e42;
 						else if(countDown == lengthInWord - 4'h2)
-							writeData <= 16'h4350;
+							writeData <= 16'h4350;//16'h4350;
 						// Source MAC: "LCSR" + FW packet length
 						else if(countDown == lengthInWord - 4'h3)
-							writeData <= 16'h434c;
+							writeData <= 16'h434c;//16'h434c;
 						else if(countDown == lengthInWord - 4'h4)
-							writeData <= 16'h5253;
+							writeData <= 16'h5253;//16'h5253;
 						else if(countDown == lengthInWord - 4'h5)
-							writeData <= {packetLen[7:0],transType,2'b00,packetLen[12:8]};
+							writeData <= {packetLen[7:0],transType,2'b00,packetLen[12:8]};//16'hAB89
 						// Ethertype: 0x0801
 						else if(countDown == lengthInWord - 4'h6) begin
-							writeData <= 16'h0108;
+							writeData <= 16'h0108;//hack: 16'h2290
 							mem_addr <= transType ? `ADDR_RESP_DATA:`ADDR_BC_RECEIVE;
 						end
 						// Data

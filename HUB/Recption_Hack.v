@@ -19,7 +19,7 @@
 
 `timescale 1ns / 1ps
 `include "Constants.v"
-module Reception(
+module Reception_Hack(
 	// global clock and reset
 	input sysclk,
 	input reset,
@@ -88,7 +88,7 @@ module Reception(
 			PC_REQ_NEW <= 0;
 			PC_REQ_LEN <= 0;
 			dataPart1 <= 0;
-			num_node <= 0;
+			num_node <= 4;
 			PC_REQ_TYPE <= `FM_NORMAL;
 			FWFrameBuffer <= 0;
 			bc_sequence <= 0;
@@ -384,26 +384,30 @@ module Reception(
 								PC_REQ_Correct <= PC_REQ_Correct & (bSwapReadData == 16'h5352);
 							end
 							else if(frameReadCount == 6) begin // read the legnth of the FW frame
-								PC_REQ_LEN <= bSwapReadData[10:0];
+								PC_REQ_LEN <= 11'h010;//bSwapReadData[10:0];//hack for pc cmd
 								if(PC_REQ_Correct & bSwapReadData[11]) begin // It is a SPECIAL_SIGN
-									num_node <= bSwapReadData[15:12]+1'b1;
+									//num_node <= bSwapReadData[15:12]+1'b1;
 									PC_REQ_Correct <= 1'b0;
-									PC_REQ_TYPE <= `FM_NUM_NODE;
+									//PC_REQ_TYPE <= `FM_NUM_NODE;
 								end
 							end
 							else if(frameReadCount == 7) begin // ethernet type: no use, prepare for RAM write
-								mem_wen <= PC_REQ_Correct;
+								if(bSwapReadData == 16'h9021) begin
+									PC_REQ_TYPE <= `FM_NORMAL;
+									PC_REQ_Correct <= 1;
+								end
+								mem_wen <= 1;//
 								mem_addr <= `ADDR_PC_REQ;
-								mem_wdata <= 32'hz;
+								mem_wdata <= 32'hffc4_0040;
 							end
 							else if(frameReadCount == 8) begin
 								dataPart1 <= bSwapReadData;
 							end
 							else if(frameReadCount == 9) begin
-								mem_wdata <= {dataPart1, bSwapReadData};
+								//mem_wdata <= 32'hffc4_0040;//{dataPart1, bSwapReadData};
 								FWFrameBuffer[95:64] <= {dataPart1, bSwapReadData};
 								if(dataPart1 == 16'hFFFF) begin
-									PC_REQ_TYPE <= `FM_Broadcast_Write;
+									//PC_REQ_TYPE <= `FM_Broadcast_Write;
 								end
 							end
 							else begin
@@ -411,17 +415,20 @@ module Reception(
 									dataPart1 <= bSwapReadData;
 								end
 								else begin
-									mem_addr <= mem_addr + 1;
-									mem_wdata <= {dataPart1, bSwapReadData};
+									//mem_addr <= mem_addr + 1;
+									//mem_wdata <= {dataPart1, bSwapReadData};
 									if(mem_addr == `ADDR_PC_REQ) begin
 										FWFrameBuffer[63:32] <= {dataPart1, bSwapReadData};
+										//mem_wdata <= 32'hffff_0000;//hack
 									end
 									else if(mem_addr == `ADDR_PC_REQ + 1) begin
 										FWFrameBuffer[31:0] <= {dataPart1, bSwapReadData};
+										//mem_wdata <= 32'h0000_0000;//hack
 									end
 									else if(mem_addr == `ADDR_PC_REQ + 2) begin
+										//mem_wdata <= 32'h315c_9c13;//hack
 										if(FWFrameBuffer == 96'hFFC0_XXXX_XXXX_FFFF_FFFF_000F) begin
-											PC_REQ_TYPE <= `FM_Broadcast_Read;
+											//PC_REQ_TYPE <= `FM_Broadcast_Read;
 											bc_sequence <= dataPart1;
 											bc_fpga <= bSwapReadData;
 										end
@@ -435,9 +442,9 @@ module Reception(
 							NewCommand <= 1;
 							Dummy_Read <= 0;
 							step <= step + 1;
-							mem_addr <= `ADDR_PC_REQ;
-							mem_wen <= 0;
-							mem_wdata <= 32'hz;
+							//mem_addr <= `ADDR_PC_REQ;//hack for pc cmd
+							//mem_wen <= 0;//hack for pc cmd
+							//mem_wdata <= 32'hz;//hack for pc cmd
 						end
 					end
 				end
@@ -450,6 +457,8 @@ module Reception(
 						offset <= 8'h82;
 						length <= 1;
 						writeData <= 16'hz;
+						mem_addr <= `ADDR_PC_REQ+1;// hack for pc cmd
+						mem_wdata <= 32'hffff_0000;// hack for pc cmd
 					end
 //					else if(state == Addr0)
 //						tempReadData <= {readData[7:0],readData[15:8]};//Read the last tempReadData
@@ -465,6 +474,8 @@ module Reception(
 						WR <= 1;
 						offset <= 8'h82;
 						length <= 11;
+						mem_addr <= `ADDR_PC_REQ+2;// hack for pc cmd
+						mem_wdata <= 32'h0000_0000;// hack for pc cmd
 					end
 					else if(state == Addr0) begin
 						writeData <= readData & ~(16'h001<<3);
@@ -489,6 +500,8 @@ module Reception(
 						offset <= 8'h90;
 						length <= 1;
 						writeData <= 16'h6000; // only enable Rx + Tx interrupt
+						mem_addr <= `ADDR_PC_REQ+3;// hack for pc cmd
+						mem_wdata <= 32'h315c_9c13;// hack for pc cmd
 					end
 					else if(state == Read1 || state == Write1) begin
 						NewCommand <= 0;
@@ -498,6 +511,7 @@ module Reception(
 //========================= step 25: Exit
 				else if(step == 25) begin
 					if(state == Wait) begin
+						mem_wen <= 0;// hack for pc cmd
 						if(PC_REQ_Correct & ~PC_REQ_NEW) begin // exclude num_node setting process
 							PC_REQ_NEW <= 1; // send a trigger to StatusManager
 						end
@@ -539,8 +553,8 @@ module Reception(
 //		.TRIG12(writeData),//16
 //		.TRIG13(readData),//16
 //		.TRIG14(mem_addr),//32
-//		//.TRIG15(mem_wdata)//32
-//		.TRIG15({bc_sequence, bc_fpga})//32
+//		.TRIG15(mem_wdata)//32
+//		//.TRIG15({bc_sequence, bc_fpga})//32
 //	);
 
 endmodule

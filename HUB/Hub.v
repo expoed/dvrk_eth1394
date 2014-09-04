@@ -109,9 +109,8 @@ module Hub
 					STATUS_FW_RECV_BC	= 6'b100111;
 					
 					
-	reg[11:0] timeout_count;	// set timeout to be 4096 cycle = 81.92 ms
-	
-	
+	reg[11:0] timeout_count;	// set timeout to be 4096 cycle = 81.92 ms\
+		
 	// The hub has two operating mode:
 	//		0: PC commnad mode		LED dark
 	//		1: BC mode		  		LED light
@@ -149,8 +148,7 @@ module Hub
 			else begin
 				// PC Command mode
 				if(!HubMode) begin
-					case(StatusManager)
-					
+					case(StatusManager)					
 					
 						// -----------------------------------
 						// receiving ethernet frame from PC
@@ -212,7 +210,7 @@ module Hub
 									// back to STATUS_ETH_RECV status
 									`FM_Broadcast_Write:
 									begin
-										StatusManager <= STATUS_ETH_RECV;
+										StatusManager <= STATUS_ETH_RECV;										
 									end
 									// broadcast read frame, num_node syn frame
 									// never happen here
@@ -251,7 +249,7 @@ module Hub
 						// wait for ACK response of PC command
 						// trigger: ACK_RXed, timeout
 						STATUS_FW_ACK_PC:
-						begin							
+						begin
 							// trigger
 							if(ACK_RXed) begin
 								timeout_count <= 0;	// reset the timer
@@ -749,30 +747,30 @@ module Hub
 // --------------------------------------------------------------------------
 // Chipscope module, for debugging
 // --------------------------------------------------------------------------
-//	wire[35:0] ctrl;
-//	Hub_icon ICON(
-//		.CONTROL0(ctrl)
-//	);
-//	HUB_ila ILA(
-//		.CONTROL(ctrl),
-//		.CLK(sysclk),
-//		.TRIG0(ETH_Init_Done),		//1
-//		.TRIG1(PC_REQ_NEW),		//1
-//		.TRIG2(RESP_RXed),	//1
-//		.TRIG3(ACK_RXed),		//1
-//		.TRIG4({BC_RESP_RXed, PC_REQ_TXed, PC_REQ_TYPE}),//4
-//		.TRIG5(ACK_RESP),		//4
-//		.TRIG6({receiveStatus,transmitStatus}),//4
-//		.TRIG7(stateReg),		//4
-//		.TRIG8(StatusManager),	//8
-//		.TRIG9(num_node),		//8
-//		.TRIG10(PC_REQ_LEN),	//8
-//		.TRIG11(RESP_DATA_LEN),	//8
-//		.TRIG12(addra),			//16
-//		.TRIG13(addrb),			//16
-//		.TRIG14(dinb),			//32
-//		.TRIG15(doutb)			//32
-//	);
+	wire[35:0] ctrl;
+	Hub_icon ICON(
+		.CONTROL0(ctrl)
+	);
+	HUB_ila ILA(
+		.CONTROL(ctrl),
+		.CLK(sysclk),
+		.TRIG0(ETH_Init_Done),		//1
+		.TRIG1(PC_REQ_NEW),		//1
+		.TRIG2(RESP_RXed),	//1
+		.TRIG3(ACK_RXed),		//1
+		.TRIG4({BC_RESP_RXed, PC_REQ_TXed, PC_REQ_TYPE}),//4
+		.TRIG5(ACK_RESP),		//4
+		.TRIG6({receiveStatus,transmitStatus}),//4
+		.TRIG7(stateReg),		//4
+		.TRIG8(StatusManager),	//8
+		.TRIG9(num_node),		//8
+		.TRIG10(PC_REQ_LEN),	//8
+		.TRIG11(RESP_DATA_LEN),	//8
+		.TRIG12(addra),			//16
+		.TRIG13(addrb),			//16
+		.TRIG14(dinb),			//32
+		.TRIG15(doutb)			//32
+	);
 	
 endmodule
 
