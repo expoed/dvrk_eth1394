@@ -35,7 +35,7 @@ module getAddr(
 endmodule
 
 module RegIO(
-	input clk40m,
+	input sysclk,
 	input reset,
 	output reg CMD,
 	output reg RDN,
@@ -69,14 +69,16 @@ module RegIO(
 					 Write0 = 4'b0110,
 					 Write1 = 4'b0111,
 					 Write2 = 4'b1000,
-					 Wait = 4'b1001;
+					 Wait = 4'b1001,
+					 Readmore = 4'b1010,	// added for 1394 clock
+					 Writemore = 4'b1011;	// added for 1394 clock
 	
 	reg [15:0] SDReg;
 	
 	assign SD = RDN ? SDReg:16'hz;
 	
 
-	always @(posedge clk40m or negedge reset) begin
+	always @(posedge sysclk or negedge reset) begin
 		if(!reset) begin
 			state <= Wait;
 		end
@@ -107,6 +109,11 @@ module RegIO(
 					end
 				Read1:
 					begin
+						state <= Readmore;
+//						state <= Read2;
+					end
+				Readmore:
+					begin
 						state <= Read2;
 					end
 				Read2:
@@ -132,6 +139,11 @@ module RegIO(
 						state <= Write1;
 					end
 				Write1:
+					begin
+						state <= Writemore;
+//						state <= Write2;
+					end
+				Writemore:
 					begin
 						state <= Write2;
 					end
@@ -174,7 +186,7 @@ module RegIO(
 //	Ethernet_icon icon(.CONTROL0(ILAControl));
 //	Ethernet_ila ila(
 //	    .CONTROL(ILAControl),
-//		.CLK(clk40m),
+//		.CLK(sysclk),
 //		.TRIG0(CMD),
 //		.TRIG1(RDN),
 //		.TRIG2(WRN),

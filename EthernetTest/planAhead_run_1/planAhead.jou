@@ -1,0 +1,12 @@
+#-----------------------------------------------------------
+# PlanAhead v13.4 (64-bit)
+# Build 157570 by hdbuild on Fri Dec 16 13:06:31 MST 2011
+# Start of session at: Thu Aug 07 18:46:33 2014
+# Process ID: 1200
+# Log file: C:/Users/Qian/Desktop/Project/Ethernet/EthernetTest/planAhead_run_1/planAhead.log
+# Journal file: C:/Users/Qian/Desktop/Project/Ethernet/EthernetTest/planAhead_run_1/planAhead.jou
+#-----------------------------------------------------------
+start_gui
+source C:/Users/Qian/Desktop/Project/Ethernet/EthernetTest/pa.fromNetlist.tcl
+exit
+stop_gui

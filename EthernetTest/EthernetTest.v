@@ -19,7 +19,9 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module EthernetTest(
-	input wire clk40m,
+//	input wire clk40m,
+	input wire clk1394,
+	output wire reset_phy,
 	output wire CSN,
 	input wire RSTN,
 	input wire PME,
@@ -29,11 +31,17 @@ module EthernetTest(
 	output wire WRN,
 	inout [15:0] SD,
 	output wire LED,
-	input[3:0] wenid
+	input[3:0] wenid,
+	input DEBUG
     );
 	
+	assign reset_phy = 1'b1;
+	BUFG clksysclk(.I(clk1394), .O(sysclk));
+//	wire sysclk;
+//	assign sysclk = clk40m;
+	
 	reg sigLed,lled;
-	always @(posedge clk40m) begin
+	always @(posedge sysclk) begin
 		sigLed <= INTRN;
 		if(sigLed && ~INTRN) begin
 			lled <= ~lled;
@@ -42,14 +50,17 @@ module EthernetTest(
 
 	assign LED = lled;
 	assign CSN = 0;//Always select
-	reg[12:0] packetLen;
+	wire TX, RX;
+	reg[5:0] statusManager;
+	
+//	assign DEBUG = RX;
 
 //============================= Register Module =============================	
 	wire[3:0] stateReg;
 	wire[15:0] readData, writeData;
 	wire[7:0] offset;
 	RegIO IOWR(
-		.clk40m(clk40m),
+		.sysclk(sysclk),
 		.reset(RSTN),
 		.CMD(CMD),
 		.RDN(RDN),
@@ -71,7 +82,7 @@ module EthernetTest(
 	wire[7:0] initoffset;
 	wire[15:0] initwriteData; 
 	Initialization Init(
-		.clk40m(clk40m),
+		.sysclk(sysclk),
 		.reset(RSTN),
 		.offset(initoffset),
 		.length(initlength),
@@ -83,16 +94,14 @@ module EthernetTest(
 		.initDone(initDone)
 	);
 
-//============================= Transmission Module =============================	
-	reg transEn = 0;	
+//============================= Transmission Module =============================
 	wire translength, transWR, transNewCommand;
 	wire[1:0] transmitStatus;
 	wire[7:0] transoffset;
 	wire[15:0] transwriteData;	
 	Transmission Trans(
-		.clk40m(clk40m),
+		.sysclk(sysclk),
 		.reset(RSTN),
-		.packetLen(packetLen),
 		.offset(transoffset),
 		.length(translength),
 		.WR(transWR),
@@ -101,19 +110,19 @@ module EthernetTest(
 		.NewCommand(transNewCommand),
 		.Dummy_Write(Dummy_Write),
 		.state(stateReg),
-		.transEn(transEn),
 		.transmitStatus(transmitStatus),
-		.wenid(wenid)
+		.wenid(wenid),
+		.statusManager(statusManager),
+		.TX(TX)
 	);
 	
 //============================= Reception Module =============================
-	reg recvEn = 0;
 	wire recvlength, recvWR, recvNewCommand;
 	wire[1:0] receiveStatus;
 	wire[7:0] recvoffset;
 	wire[15:0] recvwriteData;
 	Reception Recv(
-		.clk40m(clk40m),
+		.sysclk(sysclk),
 		.reset(RSTN),
 		.offset(recvoffset),
 		.length(recvlength),
@@ -123,8 +132,9 @@ module EthernetTest(
 		.NewCommand(recvNewCommand),
 		.Dummy_Read(Dummy_Read),
 		.state(stateReg),
-		.recvEn(recvEn),
-		.receiveStatus(receiveStatus)
+		.receiveStatus(receiveStatus),
+		.statusManager(statusManager),
+		.RX(RX)
 	);
 
 //============================= Idle =============================
@@ -134,20 +144,62 @@ module EthernetTest(
 
 
 //============================= Process Control =============================
-	always @(posedge clk40m or negedge RSTN) begin
+	reg[15:0] rtt;
+	reg[31:0] TXcount;
+	reg[15:0] waitcount;
+	reg waiting;
+	wire flag;
+	assign flag = (TXcount == 32'h000FFFFF);
+	always @(posedge sysclk or negedge RSTN) begin
 		if(!RSTN) begin
-			transEn <= 0;
-			recvEn <= 0;
+			statusManager <= 6'b0;
+			rtt <= 16'h0;
+			TXcount <= 0;
+			waiting <= 0;
 		end
-		else if(initDone == 1) begin
-//			transEn <= 1;
-//			packetLen <= 68;
-			recvEn <= 1;
+		else if(statusManager[1:0] == 2'b00) begin
+			if(initDone) begin
+				statusManager[1:0] <= 2'b01;
+				rtt <= 0;
+				TXcount <= 0;
+			end
+		end
+		else if(statusManager[1:0] == 2'b01) begin // transmission
+			if(TX) begin
+				statusManager[1:0] <= flag ? 2'b11:2'b01;
+				if(!flag) begin
+					TXcount <= TXcount + 1;
+				end
+				//statusManager[5:2] <= statusManager[5:2] + 1;
+			end
+			rtt <= rtt + 1;
+			waiting <= 0;
+		end
+		else if(statusManager[1:0] == 2'b10) begin // reception
+			if(RX) begin
+				statusManager[1:0] <= 2'b10;
+			end
+		end
+		else begin
+			if(DEBUG) begin
+				waiting <= 1;
+				waitcount <= 0;
+			end
+			else if(waiting) begin
+				waitcount <= waitcount + 1;
+				if(waitcount == 16'hFFFF) begin
+					rtt <= 0;
+					statusManager[1:0] <= 2'b01;
+				end
+			end
+			else
+				rtt <= rtt + 1;
 		end
 	end
 
 //============================= MUX Module =============================	
 	wire[1:0] RegMaster;
+	assign RegMaster = statusManager[1:0];
 
 	MUX8 offsetMUX(
 		.wire0(initoffset),
@@ -190,49 +242,30 @@ module EthernetTest(
 		.out(NewCommand)
 	);
 	
-	RegMaster getMaster(
-		.initDone(initDone),
-		.transEn(transEn),
-		.recvEn(recvEn),
-		.RegMaster(RegMaster)
+	
+	
+	wire[35:0] ILAControl;
+	Ethernet_icon icon(.CONTROL0(ILAControl));
+	Ethernet_ila ila(
+	    .CONTROL(ILAControl),
+		.CLK(sysclk),
+		.TRIG0(RSTN),
+		.TRIG1(transEn),
+		.TRIG2(initDone),
+		.TRIG3(DEBUG),
+		.TRIG4(transmitStatus),
+		.TRIG5(receiveStatus),
+		.TRIG6(rtt),
+		.TRIG7(transNewCommand),
+		.TRIG8(NewCommand),
+		.TRIG9(flag),
+		.TRIG10(TX),
+		.TRIG11(TXcount[15:0]),
+		.TRIG12(stateReg),
+		.TRIG13(RegMaster),
+		.TRIG14(RX)
 	);
-	
-	
-//	wire[35:0] ILAControl;
-//	Ethernet_icon icon(.CONTROL0(ILAControl));
-//	Ethernet_ila ila(
-//	    .CONTROL(ILAControl),
-//		.CLK(clk40m),
-//		.TRIG0(RSTN),
-//		.TRIG1(transEn),
-//		.TRIG2(initDone),
-//		.TRIG3(0),
-//		.TRIG4(transmitStatus),
-//		.TRIG5(receiveStatus),
-//		.TRIG6(RegMaster),
-//		.TRIG7(transNewCommand),
-//		.TRIG8(NewCommand),
-//		.TRIG9(transWR),
-//		.TRIG10(WR),
-//		.TRIG11({offset,transoffset}),
-//		.TRIG12(stateReg),
-//		.TRIG13(RegMaster),
-//		.TRIG14(0)
-//	);
 	
 endmodule
 
-module RegMaster(
-	input initDone,
-	input transEn,
-	input recvEn,
-	output wire[1:0] RegMaster
-	);
-	localparam [1:0] Init = 2'b00,
-					 Transmit = 2'b01,
-					 Receive = 2'b10,
-					 Idle = 2'b11;
 
-	assign RegMaster[0] = initDone ? (transEn ? 1'b1:(recvEn ? 1'b0:1'b1)):1'b0;
-	assign RegMaster[1] = initDone ? (transEn ? 1'b0:(recvEn ? 1'b1:1'b1)):1'b0;
-endmodule

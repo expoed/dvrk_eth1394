@@ -1,5 +1,5 @@
 The following files were generated for 'Ethernet_ila' in directory
-C:\Users\Qian\Desktop\Project\EthernetTest\ipcore_dir\
+C:\Users\Qian\Desktop\Project\Ethernet\EthernetTest\ipcore_dir\
 
 XCO file generator:
    Generate an XCO file for compatibility with legacy flows.

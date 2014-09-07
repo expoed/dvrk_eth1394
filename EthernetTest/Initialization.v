@@ -19,7 +19,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module Initialization(
-	input clk40m,
+	input sysclk,
 	input reset,
 	output reg[7:0] offset,
 	output reg length,
@@ -32,7 +32,7 @@ module Initialization(
 	);
 	
 	reg warmDone;
-	reg[20:0] warmCount;//0.0524s is needed to warm up
+	reg[27:0] warmCount;//0.0524s is needed to warm up
 	reg[4:0] step;
 	wire negInitDone;
 	assign negInitDone = ~initDone;//very important! to avoid error of top module MUX caused by intermediate ~initDone
@@ -48,7 +48,7 @@ module Initialization(
 					 Write2 = 4'b1000,
 					 Wait   = 4'b1001;
 	
-	always @(posedge clk40m or negedge reset) begin
+	always @(posedge sysclk or negedge reset) begin
 		if(!reset) begin
 			warmCount <= 0;
 			warmDone <= 0;
@@ -59,7 +59,7 @@ module Initialization(
 		end
 		else if(!warmDone) begin
 			warmCount <= warmCount + 1;
-			if(warmCount == 21'h1FFFFF) begin
+			if(warmCount == 28'h01FFFFF) begin
 				warmDone <= 1;
 			end
 		end
@@ -80,7 +80,7 @@ module Initialization(
 			end
 //========================= step 1: verify device chip ID
 			else if(step == 1) begin
-				if(readData == 16'h887x) begin
+				if(readData == 16'hx87x) begin
 					NewCommand <= 1;
 					step <= step + 1;
 				end
@@ -212,7 +212,8 @@ module Initialization(
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
-					step <= step + 1;
+					step <= 14;
+					//step <= step + 1;
 				end
 			end	
 //========================= step 12: Force Link in Half Duplex if Auto-Negotiation is Failed, Restart Port 1 Auto-Negotiation
@@ -238,7 +239,9 @@ module Initialization(
 					length <= 1;
 				end
 				else if(state == Addr0) begin				
-					writeData <= (readData & ~(16'h0001 << 5)) | (16'h0001 << 13);
+					//writeData <= (readData & ~(16'h0001 << 5)) | (16'h0001 << 13);
+					//writeData <= 16'h20DF;
+					writeData <= 16'h00FF;
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
@@ -294,7 +297,8 @@ module Initialization(
 					length <= 1;
 				end
 				else if(state == Addr0) begin
-					writeData <= readData | 16'h0001;
+					//writeData <= readData | 16'h0001;
+					writeData <= 16'h01EF;
 				end
 				else if(state == Read1 || state == Write1) begin
 					NewCommand <= 1;
@@ -324,47 +328,70 @@ module Initialization(
 					length <= 1;
 				end
 				else if(state == Addr0) begin
-					writeData <= readData | 16'h0001;
+					//writeData <= readData | 16'h0001;
+					writeData <= 16'h74F3;
 				end
 				else if(state == Read1 || state == Write1) begin
-					NewCommand <= 0;//1 For Verification Part
+					NewCommand <= 1;//1 For Verification Part
 					step <= step + 1;
 				end
 			end
 //************************* Verification Starts *****************************
-//			else if(step == 19) begin
-//				if(state == Read2 || state == Write2) begin
-//					WR <= 0;
-//					offset <= 8'h9C;
-//					length <= 1;
-//					writeData <= 16'bz;
-//				end
-//				else if(state == Read1 || state == Write1) begin
-//					NewCommand <= 1;
-//					step <= step + 1;
-//				end
-//			end
-//			else if(step == 20) begin
-//				if(state == Read2 || state == Write2) begin
-//					WR <= 0;
-//					offset <= 8'h82;
-//					length <= 1;
-//					writeData <= 16'bz;
-//				end
-//				else if(state == Read1 || state == Write1) begin
-//					NewCommand <= 0;
-//					step <= step + 1;
-//				end
-//			end
+			else if(step == 20) begin
+				if(state == Read2 || state == Write2) begin
+					WR <= 0;
+					offset <= 8'hE4;
+					length <= 1;
+					writeData <= 16'bz;
+				end
+				else if(state == Read1 || state == Write1) begin
+					NewCommand <= 1;
+					step <= step + 1;
+				end
+			end
+			else if(step == 21) begin
+				if(state == Read2 || state == Write2) begin
+					WR <= 0;
+					offset <= 8'hF6;
+					length <= 1;
+					writeData <= 16'bz;
+				end
+				else if(state == Read1 || state == Write1) begin
+					NewCommand <= 0;
+					step <= step + 1;
+				end
+			end
 //************************* Verification Ends *****************************
 //******************************************************
-			else if(step == 20) begin
+			else if(step == 22) begin
 				if(state == Read2 || state == Write2) begin
 					initDone <= 1;
 				end
 			end
 		end		
-	end	
+	end
+	
+//	wire[35:0] ILAControl;
+//	Ethernet_icon icon(.CONTROL0(ILAControl));
+//	Ethernet_ila ila(
+//	    .CONTROL(ILAControl),
+//		.CLK(sysclk),
+//		.TRIG0(0),
+//		.TRIG1(warmDone),
+//		.TRIG2(0),
+//		.TRIG3(reset),
+//		.TRIG4(packetLen),
+//		.TRIG5(writeData),
+//		.TRIG6(readData),
+//		.TRIG7(WR),
+//		.TRIG8(NewCommand),
+//		.TRIG9(offset),
+//		.TRIG10(length),
+//		.TRIG11(0),
+//		.TRIG12(state),
+//		.TRIG13(step[3:0]),
+//		.TRIG14(0)
+//	);
 endmodule
 
 
